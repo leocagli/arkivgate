@@ -1,0 +1,315 @@
+// Schema canÃ³nico de team22.
+// Local: Postgres con pgvector vÃ­a Docker (`docker compose up`).
+// Prod: Supabase Postgres (con extensiÃ³n `vector` habilitada en el dashboard).
+// El cliente Prisma es el mismo para los dos â€” solo cambia DATABASE_URL.
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+// La datasource URL vive en `prisma.config.ts` (cambio breaking de Prisma 7).
+datasource db {
+  provider   = "postgresql"
+  extensions = [vector]
+}
+
+// =============================================================
+// Enums
+// =============================================================
+
+enum Action {
+  BLOCK
+  REDACT
+  WARN
+  LOG
+}
+
+enum PolicyLayer {
+  regex
+  pattern
+  nl
+}
+
+enum PolicySource {
+  seed
+  admin
+  ai_suggestor     @map("ai-suggestor")
+  google_workspace @map("google-workspace")
+}
+
+enum Severity {
+  low
+  medium
+  high
+}
+
+/// CategorÃ­as canÃ³nicas de policies. Sincronizado con `seeds/`.
+/// Si se agrega un valor nuevo, requiere migraciÃ³n.
+enum PolicyDomain {
+  credentials
+  pii
+  internal_paths
+  business_policy
+  code
+}
+
+/// Rol de un member dentro de una org.
+///   - admin â†’ humano que se loguea al back-office. Edita policies,
+///             ve events/suggestions/dashboards de toda la org.
+///   - dev   â†’ entidad sin UI propia. Existe para atribuir interactions
+///             del proxy a un dev concreto (vÃ­a API key del proxy,
+///             post-hack). Sus "permisos" se materializan en el
+///             comportamiento del proxy, no en una pantalla.
+enum MemberRole {
+  admin
+  dev
+}
+
+enum SuggestionStatus {
+  pending
+  accepted
+  rejected
+}
+
+// =============================================================
+// Models
+// =============================================================
+
+/// Tenant raÃ­z. Multi-tenancy es goal: para el hack se usa la org `demo`
+/// hardcodeada via DEMO_ORG_ID, pero las queries ya filtran por org_id.
+model Organization {
+  id                String   @id // ej. 'demo', 'acme'
+  name              String
+  /// Dominio de email que matchea automÃ¡ticamente devs/admins a esta org
+  /// en el primer login con Google. ej. "acme.com". Null para orgs creadas
+  /// fuera del flujo de auto-onboarding.
+  emailDomain       String?  @unique @map("email_domain")
+  upstreamApiKeyRef String?  @map("upstream_api_key_ref") // formato "env:<VAR>" o "vault:<uuid>" â€” nunca la key cruda
+  createdAt         DateTime @default(now()) @map("created_at")
+
+  policies        Policy[]
+  interactions    Interaction[]
+  members         Member[]
+  ruleSuggestions RuleSuggestion[]
+
+  @@map("organizations")
+}
+
+/// Reglas que configura el admin (o el AI Suggestor en futuro).
+/// El campo `layer` discrimina cÃ³mo se evalÃºa la regla en el proxy:
+///   - regex   â†’ matcher literal con `pattern`
+///   - pattern â†’ matcher de filename/path con `match_config`
+///   - nl      â†’ vector similarity contra `embedding`, despuÃ©s Haiku judge
+model Policy {
+  id            String                       @id @default(uuid()) @db.Uuid
+  orgId         String                       @default("demo") @map("org_id")
+  slug          String
+  domain        PolicyDomain // categorÃ­a canÃ³nica â€” ver enum PolicyDomain
+  layer         PolicyLayer
+  rule          String // texto NL (si layer='nl') o descripciÃ³n humana de la regla
+  pattern       String? // regex literal si layer='regex'
+  matchConfig   Json?                        @map("match_config") // params si layer='pattern' (ej. {extensions:['.env','.pem']})
+  defaultAction Action                       @map("default_action")
+  severity      Severity                     @default(medium)
+  embedding     Unsupported("vector(1536)")? // solo si layer='nl'
+  source        PolicySource                 @default(seed)
+  isActive      Boolean                      @default(true) @map("is_active")
+  createdAt     DateTime                     @default(now()) @map("created_at")
+  updatedAt     DateTime                     @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [orgId], references: [id])
+
+  @@unique([orgId, slug])
+  @@index([orgId, layer])
+  @@map("policies")
+}
+
+/// Cada request de Claude Code que pasa por el proxy genera una fila acÃ¡.
+/// El `prompt` se persiste **redactado** (las regex de credenciales corren
+/// antes de escribir, sin importar si la action final fue LOG).
+model Interaction {
+  id             String                       @id @default(uuid()) @db.Uuid
+  traceId        String                       @unique @map("trace_id")
+  orgId          String                       @default("demo") @map("org_id")
+  userId         String?                      @map("user_id") @db.Uuid // members.id (mismo UUID que auth.users.id cuando integremos Supabase Auth real)
+  requestModel   String                       @map("request_model")
+  prompt         String // SIEMPRE redactado antes de persistir
+  action         Action
+  reason         String
+  policyHits     Json                         @default("[]") @map("policy_hits") // [{layer, policyId, slug, score?}]
+  latencyTotalMs Int                          @map("latency_total_ms")
+  latencyByLayer Json                         @default("{}") @map("latency_by_layer") // {regex, pattern, haiku, upstream}
+  upstreamStatus Int?                         @map("upstream_status") // null si BLOCK (no hay upstream)
+  embedding      Unsupported("vector(1536)")? // poblado por el proxy o backfill del Suggestor
+  createdAt      DateTime                     @default(now()) @map("created_at")
+
+  organization Organization @relation(fields: [orgId], references: [id])
+
+  // Composite que cubre el dashboard (`/api/admin/metrics` y `/admin/events?action=...`).
+  @@index([orgId, action, createdAt(sort: Desc)])
+  @@map("interactions")
+}
+
+/// Identidades dentro de una org. SÃ³lo los `admin` se loguean al back-office
+/// (auth mock con magic link + cÃ³digo `123456` para el hack). Los `dev`
+/// no tienen UI propia; existen como entidad para atribuir interactions
+/// del proxy cuando emitamos API keys del proxy (post-hack).
+/// Cuando integremos Supabase Auth real, `members.id` se mapea 1:1 a
+/// `auth.users.id`.
+model Member {
+  id        String     @id @default(uuid()) @db.Uuid
+  orgId     String     @default("demo") @map("org_id")
+  email     String
+  role      MemberRole @default(admin)
+  // Vinculo opcional con el User de Auth.js. Se setea cuando el member loguea
+  // por primera vez vÃ­a Google OAuth (fase 2). Hasta entonces queda null â€”
+  // los members seed (admin@team22.dev) existen sin auth.
+  userId    String?    @unique @map("user_id")
+  createdAt DateTime   @default(now()) @map("created_at")
+
+  organization   Organization     @relation(fields: [orgId], references: [id])
+  user           User?            @relation(fields: [userId], references: [id])
+  cliTokens      CliToken[]
+  cliDeviceCodes CliDeviceCode[]
+
+  @@unique([orgId, email])
+  @@map("members")
+}
+
+/// Token persistente que el CLI guarda en `~/.ArkivGate/config.json` y
+/// manda en cada request al proxy via `x-ArkivGate-key`. Solo el hash
+/// vive en DB â€” la string original solo se devuelve una vez al aprobar
+/// el device code.
+model CliToken {
+  id         String    @id @default(uuid()) @db.Uuid
+  memberId   String    @map("member_id") @db.Uuid
+  tokenHash  String    @unique @map("token_hash")
+  label      String?
+  lastUsedAt DateTime? @map("last_used_at")
+  createdAt  DateTime  @default(now()) @map("created_at")
+  revokedAt  DateTime? @map("revoked_at")
+
+  member Member @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@index([memberId])
+  @@map("cli_tokens")
+}
+
+/// OAuth-style device flow para que el CLI delegue auth al browser.
+/// El CLI crea uno con `POST /api/cli/device/start` y polling al `poll`,
+/// el user lo aprueba en `/cli/connect?code=USER-CODE` desde el browser
+/// (post-login Google).
+model CliDeviceCode {
+  deviceCode    String    @id @map("device_code")
+  userCode      String    @unique @map("user_code")
+  memberId      String?   @map("member_id") @db.Uuid
+  status        String    @default("pending") // pending | approved | expired
+  createdAt     DateTime  @default(now()) @map("created_at")
+  expiresAt     DateTime  @map("expires_at")
+  approvedAt    DateTime? @map("approved_at")
+  issuedTokenId String?   @map("issued_token_id") @db.Uuid
+  /// Token plaintext almacenado solo entre `approved` y la primera vez que
+  /// el CLI hace poll. El handler del poll lo borra apenas lo entrega.
+  /// DespuÃ©s de eso, solo queda el hash en `cli_tokens`.
+  secretToken   String?   @map("secret_token")
+  /// Org-id que el dev pasÃ³ al CLI con `--org-id`. Se usa al aprobar para
+  /// joinear al user a esa org como `dev` (si no tiene member previo).
+  /// Null = el user debe estar previamente invitado o no se aprueba.
+  orgInviteId   String?   @map("org_invite_id")
+
+  member Member? @relation(fields: [memberId], references: [id], onDelete: SetNull)
+
+  @@index([status])
+  @@map("cli_device_codes")
+}
+
+// =============================================================
+// Auth.js v5 â€” modelos estÃ¡ndar del Prisma adapter.
+// Ver https://authjs.dev/getting-started/adapters/prisma
+// =============================================================
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String    @unique
+  emailVerified DateTime? @map("email_verified")
+  image         String?
+
+  accounts Account[]
+  sessions Session[]
+  member   Member?
+
+  @@map("auth_users")
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String  @map("user_id")
+  type              String
+  provider          String
+  providerAccountId String  @map("provider_account_id")
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("auth_accounts")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique @map("session_token")
+  userId       String   @map("user_id")
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("auth_sessions")
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@map("auth_verification_tokens")
+}
+
+/// Cola del AI Suggestor (Layer 4). Cada fila es una propuesta de regla
+/// nueva derivada de `interactions`. El admin la acepta / rechaza / edita
+/// desde `/admin/suggestions`. Aceptar promueve la sugerencia a una fila
+/// real en `policies` con `source = ai-suggestor`.
+model RuleSuggestion {
+  id                  String           @id @default(uuid()) @db.Uuid
+  orgId               String           @default("demo") @map("org_id")
+  proposedSlug        String           @map("proposed_slug")
+  proposedDomain      PolicyDomain     @map("proposed_domain")
+  proposedLayer       PolicyLayer      @map("proposed_layer")
+  proposedRule        String           @map("proposed_rule")
+  proposedPattern     String?          @map("proposed_pattern")
+  proposedMatchConfig Json?            @map("proposed_match_config")
+  proposedAction      Action           @map("proposed_action")
+  proposedSeverity    Severity         @default(medium) @map("proposed_severity")
+  matchCount          Int              @default(0) @map("match_count") // matches retroactivos sobre interactions
+  examples            Json             @default("[]") // [{traceId, promptRedacted, createdAt}]
+  sourceHint          String?          @map("source_hint") // "google_workspace" | null â€” distingue origen en la UI
+  status              SuggestionStatus @default(pending)
+  rejectReason        String?          @map("reject_reason")
+  acceptedPolicyId    String?          @map("accepted_policy_id") @db.Uuid
+  createdAt           DateTime         @default(now()) @map("created_at")
+  decidedAt           DateTime?        @map("decided_at")
+
+  organization Organization @relation(fields: [orgId], references: [id])
+
+  @@index([orgId, status, createdAt(sort: Desc)])
+  @@map("rule_suggestions")
+}
+

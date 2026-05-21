@@ -1,0 +1,21 @@
+# Build config for Railway / nixpacks.
+# Uses `uv` straight from nixpkgs (not pip) so we don't depend on pip being
+# bundled with the Python derivation — many slim Python builds in nix don't
+# ship pip on $PATH.
+
+[phases.setup]
+nixPkgs = ["python312", "uv"]
+
+[phases.install]
+cmds = [
+  "uv venv .venv --python 3.12",
+  "uv sync --frozen --no-dev",
+]
+
+[start]
+# Use `uv run` instead of an absolute venv path: nixpacks rewrites $PATH
+# to /opt/venv/bin (which doesn't exist when the venv lives at /app/.venv
+# per the install phase), so plain `uvicorn` and `/app/.venv/bin/uvicorn`
+# both broke. `uv run --frozen` resolves the project venv on its own and
+# is robust to nixpacks/uv layout drift.
+cmd = "uv run --frozen --no-dev uvicorn app.main:app --host 0.0.0.0 --port $PORT --proxy-headers --forwarded-allow-ips=*"
