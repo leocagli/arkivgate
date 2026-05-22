@@ -20,7 +20,7 @@ async def send_arkiv_event(
         headers["x-arkiv-bridge-token"] = bridge_token
 
     try:
-        async with httpx.AsyncClient(timeout=10.0) as client:
+        async with httpx.AsyncClient(timeout=30.0) as client:
             resp = await client.post(bridge_url, json=payload, headers=headers)
             if resp.status_code >= 400:
                 logger.warning(
@@ -29,4 +29,4 @@ async def send_arkiv_event(
                     resp.text[:500],
                 )
     except Exception as exc:  # pragma: no cover
-        logger.warning("[arkiv_bridge] failed: %s", exc)
+        logger.warning("[arkiv_bridge] failed type=%s detail=%r", type(exc).__name__, exc)

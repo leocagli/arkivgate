@@ -58,6 +58,59 @@ type PolicyReference = {
   txExplorer?: string;
 };
 
+let arkivWriteQueue: Promise<void> = Promise.resolve();
+
+function delay(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function withArkivWriteLock<T>(operation: () => Promise<T>): Promise<T> {
+  const run = arkivWriteQueue.catch(() => undefined).then(operation);
+  arkivWriteQueue = run.then(
+    () => undefined,
+    () => undefined,
+  );
+  return run;
+}
+
+function retryBackoffMs(attempt: number): number {
+  const base = 450 * 2 ** attempt;
+  const jitter = Math.floor(Math.random() * 250);
+  return base + jitter;
+}
+
+function isRetryableEntityError(error: unknown): boolean {
+  if (!(error instanceof Error)) return false;
+  const message = error.message.toLowerCase();
+  return (
+    message.includes("replacement transaction underpriced") ||
+    message.includes("nonce too low") ||
+    message.includes("already known")
+  );
+}
+
+async function createEntityWithRetry(
+  entityBuilder: Parameters<ReturnType<typeof getArkivWalletClient>["createEntity"]>[0],
+  retries = 3,
+) {
+  const walletClient = getArkivWalletClient();
+  let lastError: unknown;
+
+  for (let attempt = 0; attempt <= retries; attempt += 1) {
+    try {
+      return await withArkivWriteLock(() => walletClient.createEntity(entityBuilder));
+    } catch (error) {
+      lastError = error;
+      if (!isRetryableEntityError(error) || attempt === retries) {
+        throw error;
+      }
+      await delay(retryBackoffMs(attempt));
+    }
+  }
+
+  throw lastError instanceof Error ? lastError : new Error("Failed to create Arkiv entity");
+}
+
 async function resolvePolicyReference(
   orgKey: string,
   options: {
@@ -77,8 +130,7 @@ async function resolvePolicyReference(
 
   if (options.policySlugHint?.trim()) {
     const slug = options.policySlugHint.trim();
-    const walletClient = getArkivWalletClient();
-    const createdPolicy = await walletClient.createEntity(
+    const createdPolicy = await createEntityWithRetry(
       buildPolicyEntity({
         orgKey,
         name: `Runtime policy: ${slug}`,
@@ -109,8 +161,7 @@ async function resolvePolicyReference(
     };
   }
 
-  const walletClient = getArkivWalletClient();
-  const createdPolicy = await walletClient.createEntity(
+  const createdPolicy = await createEntityWithRetry(
     buildPolicyEntity({
       orgKey,
       name: "Playground safety policy",
@@ -134,7 +185,6 @@ function normalizeAction(action?: ActionType | "PASS") {
 }
 
 export async function persistArkivPromptAudit(input: PersistArkivAuditInput): Promise<PersistArkivAuditResult> {
-  const walletClient = getArkivWalletClient();
   const evaluation =
     typeof input.prompt === "string" && input.prompt.trim().length > 0
       ? evaluatePromptRisk(input.prompt)
@@ -162,7 +212,7 @@ export async function persistArkivPromptAudit(input: PersistArkivAuditInput): Pr
     severity: finalSeverity,
   });
 
-  const promptReview = await walletClient.createEntity(
+  const promptReview = await createEntityWithRetry(
     buildPromptReviewEntity({
       orgKey: input.orgKey,
       sessionKey: input.sessionKey ?? `session_${input.traceId}`,
@@ -179,7 +229,7 @@ export async function persistArkivPromptAudit(input: PersistArkivAuditInput): Pr
     }),
   );
 
-  const policyDecision = await walletClient.createEntity(
+  const policyDecision = await createEntityWithRetry(
     buildPolicyDecisionEntity({
       orgKey: input.orgKey,
       promptReviewKey: promptReview.entityKey,

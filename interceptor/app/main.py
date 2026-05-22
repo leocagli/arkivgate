@@ -203,11 +203,13 @@ async def _persist_and_emit_best_effort(
     _schedule_arkiv_bridge(
         trace_id=trace_id,
         org_id=org_id,
+        user_id=user_id,
         parsed=parsed,
         hits=hits,
         action=action,
         reason=reason,
         latency_total_ms=latency_total_ms,
+        upstream_status=upstream_status,
     )
 
 
@@ -215,21 +217,25 @@ def _schedule_arkiv_bridge(
     *,
     trace_id: str,
     org_id: str,
+    user_id: UUID | None,
     parsed: MessagesRequest,
     hits: list[PolicyHit],
     action: Action,
     reason: str,
     latency_total_ms: int,
+    upstream_status: int | None,
 ) -> None:
     async def _run() -> None:
         await _emit_arkiv_bridge(
             trace_id=trace_id,
             org_id=org_id,
+            user_id=user_id,
             parsed=parsed,
             hits=hits,
             action=action,
             reason=reason,
             latency_total_ms=latency_total_ms,
+            upstream_status=upstream_status,
         )
 
     task = asyncio.create_task(_run())
@@ -587,11 +593,13 @@ async def _emit_arkiv_bridge(
     *,
     trace_id: str,
     org_id: str,
+    user_id: UUID | None,
     parsed: MessagesRequest,
     hits: list[PolicyHit],
     action: Action,
     reason: str,
     latency_total_ms: int,
+    upstream_status: int | None,
 ) -> None:
     prompt_redacted = _clip_for_storage(redact_for_storage(_flatten_prompt(parsed), hits))
     matched_rules = sorted({h.slug for h in hits})
@@ -603,14 +611,17 @@ async def _emit_arkiv_bridge(
         payload={
             "orgId": org_id,
             "traceId": trace_id,
+            "userId": str(user_id) if user_id else None,
             "action": action.value,
             "severity": _to_severity(action),
             "reason": reason,
             "promptRedacted": prompt_redacted,
             "model": parsed.model,
+            "policyHits": [h.to_record() for h in hits],
             "matchedRules": matched_rules,
             "riskScore": risk_score,
             "latencyMs": latency_total_ms,
+            "upstreamStatus": upstream_status,
             "agentKey": "agent_arkivgate_proxy",
             "sessionKey": f"session_{trace_id}",
             "createdAt": int(time.time() * 1000),

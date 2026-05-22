@@ -7,6 +7,8 @@ import Link from "next/link";
 
 import { CelebrationMark } from "./_celebration";
 
+export const dynamic = "force-dynamic";
+
 export default function CliConnectDonePage() {
   return (
     <div className="min-h-screen bg-paper text-ink">

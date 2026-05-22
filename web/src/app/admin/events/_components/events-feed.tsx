@@ -16,6 +16,12 @@ const ACTION_STYLES: Record<EventDTO["action"], string> = {
   LOG: "bg-zinc-500/10 text-zinc-700",
 };
 
+const ARKIV_STATUS_STYLES: Record<NonNullable<EventDTO["arkivStatus"]>, string> = {
+  pending: "bg-amber-500/10 text-amber-700 border-amber-700/20",
+  ok: "bg-emerald-500/10 text-emerald-700 border-emerald-700/20",
+  error: "bg-red-500/10 text-red-700 border-red-700/20",
+};
+
 function isAction(v: string | null): v is EventDTO["action"] {
   return v === "BLOCK" || v === "REDACT" || v === "WARN" || v === "LOG";
 }
@@ -193,6 +199,14 @@ function EventCard({ event: e }: { event: EventDTO }) {
         >
           {e.action}
         </span>
+        {e.arkivStatus ? (
+          <span
+            className={`border px-2 py-1 font-mono text-[11px] font-semibold uppercase tracking-wider ${ARKIV_STATUS_STYLES[e.arkivStatus]}`}
+            style={{ borderRadius: "var(--radius)" }}
+          >
+            arkiv {e.arkivStatus}
+          </span>
+        ) : null}
         <span className="font-mono text-xs text-ink">{headline}</span>
       </div>
 
@@ -213,6 +227,93 @@ function EventCard({ event: e }: { event: EventDTO }) {
         <span>upstream {e.upstreamStatus ?? "skipped"}</span>
         <span>·</span>
         <span className="truncate">trace {e.traceId.slice(0, 12)}…</span>
+      </div>
+
+      <div
+        className="mt-3 border border-graphite-dark/15 bg-paper-soft/40 p-3"
+        style={{ borderRadius: "var(--radius)" }}
+      >
+        <div className="flex flex-wrap items-center gap-2 font-mono text-[11px] uppercase tracking-wider text-graphite-dark">
+          <span className="text-ink">arkiv</span>
+          <span>·</span>
+          <span>{describeArkivStatus(e)}</span>
+          {e.bridgePersistMs !== null ? (
+            <>
+              <span>·</span>
+              <span>bridge {e.bridgePersistMs}ms</span>
+            </>
+          ) : null}
+          {e.arkivPersistMs !== null ? (
+            <>
+              <span>·</span>
+              <span>write {e.arkivPersistMs}ms</span>
+            </>
+          ) : null}
+        </div>
+
+        {e.arkivError ? (
+          <p className="mt-2 break-words font-mono text-[11px] uppercase tracking-wider text-red-700/90">
+            arkiv error · {e.arkivError}
+          </p>
+        ) : null}
+
+        {e.arkiv?.explorers ? (
+          <div className="mt-2 flex flex-wrap items-center gap-2 font-mono text-[11px] uppercase tracking-wider text-graphite">
+            {e.arkiv.explorers.promptReview ? (
+              <a
+                href={e.arkiv.explorers.promptReview}
+                target="_blank"
+                rel="noreferrer"
+                className="transition-colors hover:text-ink"
+              >
+                prompt_review
+              </a>
+            ) : null}
+            {e.arkiv.explorers.policyDecision ? (
+              <>
+                <span>·</span>
+                <a
+                  href={e.arkiv.explorers.policyDecision}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="transition-colors hover:text-ink"
+                >
+                  policy_decision
+                </a>
+              </>
+            ) : null}
+            {e.arkiv.explorers.promptReviewTx ? (
+              <>
+                <span>·</span>
+                <a
+                  href={e.arkiv.explorers.promptReviewTx}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="transition-colors hover:text-ink"
+                >
+                  tx review
+                </a>
+              </>
+            ) : null}
+            {e.arkiv.explorers.policyDecisionTx ? (
+              <>
+                <span>·</span>
+                <a
+                  href={e.arkiv.explorers.policyDecisionTx}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="transition-colors hover:text-ink"
+                >
+                  tx decision
+                </a>
+              </>
+            ) : null}
+          </div>
+        ) : (
+          <p className="mt-2 font-mono text-[11px] uppercase tracking-wider text-graphite">
+            sin refs arkiv todavia
+          </p>
+        )}
       </div>
 
       <div className="mt-3">
@@ -337,4 +438,13 @@ function formatTime(d: Date): string {
 function truncate(s: string, n: number): string {
   if (s.length <= n) return s;
   return s.slice(0, n) + "…";
+}
+
+function describeArkivStatus(event: EventDTO): string {
+  if (event.arkivStatus === "ok") return "ok";
+  if (event.arkivStatus === "error") return "error";
+  if (event.arkivStatus === "pending") return "pending";
+  if (event.arkiv?.promptReviewTxHash || event.arkiv?.policyDecisionTxHash) return "ok";
+  if (event.arkivError) return "error";
+  return "sin estado";
 }
