@@ -33,6 +33,7 @@ from .models import Interaction, Policy
 from .nl_layer import is_enabled as nl_enabled
 from .nl_layer import run_nl_layer
 from .redact import redact_for_storage, redact_request_body
+from .runtime_context import RuntimeContext, fetch_runtime_context
 from .schemas import MessagesRequest
 from .upstream import (
     close_client,
@@ -237,13 +238,27 @@ async def messages_via_cli(
     full path of `ANTHROPIC_BASE_URL`. The CLI bakes the token in there so
     every prompt becomes attributable to the dev who ran `ArkivGate setup`.
     """
-    caller = await resolve_cli_token(session, token)
+    runtime_context: RuntimeContext | None = None
+    caller: CliCaller | None = None
+    try:
+        caller = await resolve_cli_token(session, token)
+    except Exception:
+        logger.exception("[cli-auth] db lookup failed; trying web runtime context")
+
+    if caller is None:
+        runtime_context = await fetch_runtime_context(
+            token=token,
+            bridge_url=settings.arkiv_bridge_url,
+            bridge_token=settings.arkiv_bridge_token,
+        )
+        caller = runtime_context.caller if runtime_context else None
+
     if caller is None:
         return JSONResponse(
             {"error": "unknown or revoked arkivgate token"},
             status_code=401,
         )
-    return await _process_messages(request, session, caller=caller)
+    return await _process_messages(request, session, caller=caller, runtime_context=runtime_context)
 
 
 async def _process_messages(
@@ -251,6 +266,7 @@ async def _process_messages(
     session: AsyncSession,
     *,
     caller: CliCaller | None,
+    runtime_context: RuntimeContext | None = None,
 ):
     started = time.perf_counter()
     raw_body = await request.body()
@@ -285,7 +301,11 @@ async def _process_messages(
 
     # ----- Layer 1: regex -----------------------------------------
     regex_started = time.perf_counter()
-    regex_policies = await _load_active_regex_policies(session, org_id)
+    regex_policies = (
+        [policy for policy in runtime_context.policies if policy.layer == PolicyLayer.regex]
+        if runtime_context is not None
+        else await _load_active_regex_policies(session, org_id)
+    )
     hits = run_regex_layer(parsed, regex_policies)
     regex_ms = int((time.perf_counter() - regex_started) * 1000)
     latency_by_layer: dict[str, int] = {"regex": regex_ms}
@@ -304,7 +324,11 @@ async def _process_messages(
     elif not nl_enabled():
         logger.info("[nl] trace=%s skipped reason=no_judge_api_key", trace_id)
     else:
-        nl_policies = await _load_active_nl_policies(session, org_id)
+        nl_policies = (
+            [policy for policy in runtime_context.policies if policy.layer == PolicyLayer.nl]
+            if runtime_context is not None
+            else await _load_active_nl_policies(session, org_id)
+        )
         if not nl_policies:
             logger.info("[nl] trace=%s skipped reason=no_active_nl_policies", trace_id)
         else:
