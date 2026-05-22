@@ -112,3 +112,34 @@ body {
     animation: none;
   }
 }
+
+/* Landing-specific atmosphere: subtle grid and radial lights to avoid flat background. */
+.landing-grid {
+  background-image:
+    linear-gradient(to right, color-mix(in oklab, #205863 12%, transparent) 1px, transparent 1px),
+    linear-gradient(to bottom, color-mix(in oklab, #205863 10%, transparent) 1px, transparent 1px);
+  background-size: 28px 28px;
+}
+
+.landing-glow {
+  background:
+    radial-gradient(circle at 20% 10%, color-mix(in oklab, #2f7a86 30%, transparent), transparent 45%),
+    radial-gradient(circle at 85% 20%, color-mix(in oklab, #185460 34%, transparent), transparent 44%),
+    linear-gradient(to bottom, color-mix(in oklab, #c9ddd9 34%, transparent), transparent 65%);
+}
+
+@keyframes drift {
+  0% { transform: translateY(0); }
+  50% { transform: translateY(-2px); }
+  100% { transform: translateY(0); }
+}
+
+.drift {
+  animation: drift 4.8s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .drift {
+    animation: none;
+  }
+}

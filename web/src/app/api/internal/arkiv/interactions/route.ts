@@ -1,6 +1,4 @@
-import { promptHash } from "@/lib/arkiv/mappers";
-import { getArkivWalletClient } from "@/lib/arkiv/client";
-import { buildPolicyDecisionEntity, buildPromptReviewEntity } from "@/lib/arkiv/entities";
+import { persistArkivPromptAudit } from "@/lib/arkiv/playground-audit";
 
 type InterceptorBridgeBody = {
   orgId: string;
@@ -36,44 +34,30 @@ export async function POST(request: Request) {
     return Response.json({ error: "invalid json" }, { status: 400 });
   }
 
-  const walletClient = getArkivWalletClient();
-
-  const promptReview = await walletClient.createEntity(
-    buildPromptReviewEntity({
-      orgKey: body.orgId,
-      sessionKey: body.sessionKey ?? `session_${body.traceId}`,
-      agentKey: body.agentKey ?? "agent_arkivgate_proxy",
-      model: body.model,
-      promptHash: promptHash(body.promptRedacted),
-      promptRedacted: body.promptRedacted,
-      matchedRules: body.matchedRules,
-      action: body.action,
-      severity: body.severity,
-      riskScore: body.riskScore,
-      latencyMs: body.latencyMs ?? 0,
-      createdAt: body.createdAt,
-    }),
-  );
-
-  const policyDecision = await walletClient.createEntity(
-    buildPolicyDecisionEntity({
-      orgKey: body.orgId,
-      promptReviewKey: promptReview.entityKey,
-      policyKey: body.policyKeyHint ?? `policy_hint_${body.traceId}`,
-      finalAction: body.action,
-      severity: body.severity,
-      reason: body.reason,
-      policyLayer: "regex",
-      createdAt: body.createdAt,
-    }),
-  );
+  const persisted = await persistArkivPromptAudit({
+    orgKey: body.orgId,
+    traceId: body.traceId,
+    model: body.model,
+    promptRedacted: body.promptRedacted,
+    action: body.action,
+    severity: body.severity,
+    reason: body.reason,
+    matchedRules: body.matchedRules,
+    riskScore: body.riskScore,
+    policyKeyHint: body.policyKeyHint,
+    sessionKey: body.sessionKey,
+    agentKey: body.agentKey,
+    latencyMs: body.latencyMs,
+    createdAt: body.createdAt,
+  });
 
   return Response.json({
     ok: true,
     traceId: body.traceId,
     arkiv: {
-      promptReviewKey: promptReview.entityKey,
-      policyDecisionKey: policyDecision.entityKey,
+      policyKey: persisted.policyKey,
+      promptReviewKey: persisted.promptReviewKey,
+      policyDecisionKey: persisted.policyDecisionKey,
     },
   });
 }

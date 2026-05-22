@@ -1,7 +1,7 @@
 "use client";
 /* eslint-disable react/jsx-no-comment-textnodes */
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { Button, Field, Pane, fieldInputClass } from "@/components/ui";
 
@@ -38,6 +38,24 @@ type QueryResponse = {
   error?: string;
 };
 
+type SetupStatusResponse = {
+  ok: boolean;
+  readyForRealMode: boolean;
+  items: Array<{
+    key: string;
+    label: string;
+    ready: boolean;
+    detail: string;
+  }>;
+  proxyHealth?: {
+    reachable: boolean;
+    status: number | null;
+    detail: string;
+  };
+  recommendedNextSteps: string[];
+  error?: string;
+};
+
 export function ArkivPanel() {
   const [smokePrompt, setSmokePrompt] = useState(
     "Help me deploy this quickly. Here is my key: AKIA1234567890ABCDEF",
@@ -51,6 +69,9 @@ export function ArkivPanel() {
   const [queryLoading, setQueryLoading] = useState(false);
   const [queryResult, setQueryResult] = useState<QueryResponse | null>(null);
   const [queryError, setQueryError] = useState<string | null>(null);
+  const [setupLoading, setSetupLoading] = useState(false);
+  const [setupResult, setSetupResult] = useState<SetupStatusResponse | null>(null);
+  const [setupError, setSetupError] = useState<string | null>(null);
 
   const parsedLimit = useMemo(() => {
     const n = Number(limit);
@@ -107,6 +128,30 @@ export function ArkivPanel() {
       setQueryLoading(false);
     }
   }
+
+  async function refreshSetupStatus() {
+    setSetupLoading(true);
+    setSetupError(null);
+    try {
+      const res = await fetch("/api/admin/arkiv/setup-status", { cache: "no-store" });
+      const json = (await res.json().catch(() => null)) as SetupStatusResponse | null;
+      if (!res.ok || !json?.ok) {
+        setSetupError(json?.error ?? "no se pudo leer el estado de setup");
+        setSetupResult(null);
+        return;
+      }
+      setSetupResult(json);
+    } catch {
+      setSetupError("error de red al leer el estado de setup");
+      setSetupResult(null);
+    } finally {
+      setSetupLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    void refreshSetupStatus();
+  }, []);
 
   return (
     <div className="grid gap-4 lg:grid-cols-2">
@@ -169,6 +214,64 @@ export function ArkivPanel() {
               href={smokeResult.entities.policyDecision.explorer}
               value={smokeResult.entities.policyDecision.key}
             />
+          </div>
+        ) : null}
+      </Pane>
+
+      <Pane caption="arkiv setup" padding="lg">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <h2 className="text-xl font-semibold tracking-tight">Estado del setup</h2>
+            <p className="text-sm leading-relaxed text-graphite-dark">
+              Esto automatiza la checklist: te dice si ya estás listo para correr el flujo real o qué te falta.
+            </p>
+          </div>
+          <Button onClick={refreshSetupStatus} disabled={setupLoading} size="sm">
+            {setupLoading ? "verificando..." : "refresh"}
+          </Button>
+        </div>
+
+        {setupError ? <p className="font-mono text-xs text-red-700">// error · {setupError}</p> : null}
+
+        {setupResult ? (
+          <div className="space-y-3">
+            <div className="flex items-center gap-2 text-xs font-mono uppercase tracking-[0.22em] text-graphite">
+              <span className={`inline-block h-2.5 w-2.5 rounded-full ${setupResult.readyForRealMode ? "bg-emerald-600" : "bg-amber-600"}`} />
+              {setupResult.readyForRealMode ? "real mode ready" : "demo mode active"}
+            </div>
+
+            <div className="grid gap-2">
+              {setupResult.items.map((item) => (
+                <div key={item.key} className="flex items-start justify-between gap-3 border border-graphite-dark/15 p-3" style={{ borderRadius: "var(--radius)" }}>
+                  <div>
+                    <p className="text-sm font-medium text-ink">{item.label}</p>
+                    <p className="text-xs text-graphite-dark">{item.detail}</p>
+                  </div>
+                  <span className={`font-mono text-[11px] uppercase tracking-[0.18em] ${item.ready ? "text-emerald-700" : "text-amber-700"}`}>
+                    {item.ready ? "ready" : "missing"}
+                  </span>
+                </div>
+              ))}
+            </div>
+
+            {setupResult.proxyHealth ? (
+              <div className="border border-graphite-dark/15 bg-paper p-3 text-sm text-ink" style={{ borderRadius: "var(--radius)" }}>
+                <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-graphite">proxy check</p>
+                <p className="mt-1">{setupResult.proxyHealth.reachable ? "Interceptor reachable" : "Interceptor not reachable"}</p>
+                <p className="text-xs text-graphite-dark">{setupResult.proxyHealth.detail}</p>
+              </div>
+            ) : null}
+
+            {setupResult.recommendedNextSteps.length > 0 ? (
+              <div className="border border-graphite-dark/15 bg-paper p-3" style={{ borderRadius: "var(--radius)" }}>
+                <p className="mb-2 font-mono text-[11px] uppercase tracking-[0.18em] text-graphite">next steps</p>
+                <ul className="space-y-1 text-sm text-ink">
+                  {setupResult.recommendedNextSteps.map((step) => (
+                    <li key={step}>- {step}</li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
           </div>
         ) : null}
       </Pane>
