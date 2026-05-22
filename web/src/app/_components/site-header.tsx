@@ -1,5 +1,7 @@
 import Link from "next/link";
 
+import { BrandMark } from "@/components/brand-mark";
+
 export function SiteHeader() {
   return (
     <header className="sticky top-0 z-30 w-full border-b border-graphite-dark/15 bg-paper/85 backdrop-blur supports-[backdrop-filter]:bg-paper/70">
@@ -37,9 +39,9 @@ export function Wordmark({ size = "sm" }: { size?: "sm" | "lg" }) {
   const wordSize = size === "lg" ? "text-6xl md:text-8xl" : "text-xl";
   return (
     <Link href="/" className="flex items-center gap-3" aria-label="ArkivGate home">
-      <span
-        aria-hidden
-        className={`${size === "lg" ? "h-14 w-14 md:h-20 md:w-20" : "h-6 w-6"} rounded-sm border border-ink bg-paper`}
+      <BrandMark
+        decorative
+        className={`${size === "lg" ? "h-14 w-14 md:h-20 md:w-20" : "h-6 w-6"} text-ink`}
       />
       <span
         className={`${wordSize} font-sans font-semibold lowercase tracking-tight text-ink`}

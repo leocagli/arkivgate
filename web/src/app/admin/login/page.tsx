@@ -7,6 +7,7 @@ import { redirect } from "next/navigation";
 import { auth, isAuthConfigured, signIn } from "@/auth";
 import { SiteHeader } from "@/app/_components/site-header";
 import { GridBackdrop } from "@/app/_components/grid-backdrop";
+import { BrandMark } from "@/components/brand-mark";
 
 const REPO_URL = "https://github.com/leocagli/arkivgate";
 
@@ -69,10 +70,7 @@ export default async function AdminLoginPage({
             style={{ animationDelay: "120ms", borderRadius: "var(--radius)" }}
           >
             <div className="flex items-center gap-3">
-              <span
-                aria-hidden
-                className="h-7 w-7 rounded-sm border border-ink bg-paper"
-              />
+              <BrandMark decorative className="h-7 w-7 text-ink" />
               <span className="text-xl font-semibold lowercase tracking-tight">
                 arkivgate
               </span>

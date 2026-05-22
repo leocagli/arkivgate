@@ -21,24 +21,21 @@ export const metadata: Metadata = {
   description:
     "El firewall de Claude Code corporativo. Reglas no-code, redacción en runtime y auditoría completa.",
   icons: {
-    icon: [
-      { url: "/logo.ico", sizes: "any" },
-      { url: "/logo.png", type: "image/png" },
-    ],
-    apple: "/logo.png",
+    icon: [{ url: "/logo.svg", type: "image/svg+xml" }],
+    apple: "/logo.svg",
   },
   openGraph: {
     title: "ArkivGate — Un paso controlado entre la intención y la respuesta",
     description:
       "El firewall de Claude Code corporativo. Reglas no-code, redacción en runtime y auditoría completa.",
-    images: ["/logo.png"],
+    images: ["/logo.svg"],
   },
   twitter: {
     card: "summary_large_image",
     title: "ArkivGate",
     description:
       "El firewall de Claude Code corporativo. Reglas no-code, redacción en runtime y auditoría completa.",
-    images: ["/logo.png"],
+    images: ["/logo.svg"],
   },
 };
 

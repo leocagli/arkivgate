@@ -6,6 +6,8 @@ import { usePathname } from "next/navigation";
 import { type ReactNode, useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 
+import { BrandMark } from "@/components/brand-mark";
+
 import { AdminNav, NAV_ITEMS } from "./nav";
 
 type AdminShellProps = {
@@ -63,10 +65,7 @@ export function AdminShell({
               <HamburgerIcon className="h-4 w-4" />
             </button>
             <Link href="/" className="flex items-center gap-3">
-              <span
-                aria-hidden
-                className="h-6 w-6 rounded-sm border border-ink bg-paper"
-              />
+              <BrandMark decorative className="h-6 w-6 text-ink" />
               <span className="text-xl font-semibold lowercase tracking-tight">
                 arkivgate
               </span>
@@ -125,10 +124,7 @@ export function AdminShell({
                   className="flex items-center gap-2"
                   onClick={() => setOpen(false)}
                 >
-                  <span
-                    aria-hidden
-                    className="h-6 w-6 rounded-sm border border-ink bg-paper"
-                  />
+                  <BrandMark decorative className="h-6 w-6 text-ink" />
                   <span className="text-base font-semibold lowercase tracking-tight">
                     arkivgate
                   </span>

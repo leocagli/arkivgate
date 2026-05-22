@@ -1,7 +1,5 @@
-// Closing-the-gate celebration: the four pieces of the ArkivGate mark
-// (two postes + two travesaños) slide into place once, then settle.
-// Reads as a literal "the gate just closed for you" moment without any
-// extra chrome — same brand geometry, just animated in.
+// The completion mark keeps the doorway silhouette but still gets a short,
+// visible motion so the success state feels intentional.
 "use client";
 
 import { motion, useReducedMotion } from "framer-motion";
@@ -14,52 +12,37 @@ export function CelebrationMark({ className = "" }: { className?: string }) {
 
   return (
     <svg
-      viewBox="0 0 200 200"
+      viewBox="0 0 64 64"
       role="img"
       aria-label="ArkivGate vinculado"
       className={className}
-      fill="currentColor"
+      fill="none"
     >
       <title>ArkivGate vinculado</title>
-      {/* poste izquierdo — entra desde arriba */}
-      <motion.rect
-        x="36"
-        y="40"
-        width="18"
-        height="120"
-        initial={reduce ? false : { y: -160, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        transition={{ ...shared, delay: 0.05 }}
-      />
-      {/* poste derecho — entra desde abajo */}
-      <motion.rect
-        x="146"
-        y="40"
-        width="18"
-        height="120"
-        initial={reduce ? false : { y: 160, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        transition={{ ...shared, delay: 0.05 }}
-      />
-      {/* travesaño superior — entra desde la izquierda */}
-      <motion.rect
-        x="54"
-        y="74"
-        width="92"
-        height="18"
-        initial={reduce ? false : { x: -200, opacity: 0 }}
+      <motion.g
+        initial={reduce ? false : { scale: 0.84, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        transition={shared}
+        style={{ transformOrigin: "50% 50%" }}
+      >
+        <rect x="8" y="6" width="26" height="52" rx="6" fill="currentColor" />
+        <rect x="16" y="14" width="12" height="36" rx="2.5" fill="var(--paper, #f6f1e8)" />
+      </motion.g>
+      <motion.path
+        d="M28 12L50 16V48L28 52V12Z"
+        fill="currentColor"
+        initial={reduce ? false : { x: 10, opacity: 0 }}
         animate={{ x: 0, opacity: 1 }}
-        transition={{ ...shared, delay: 0.5 }}
+        transition={{ ...shared, delay: 0.2 }}
       />
-      {/* travesaño inferior — entra desde la derecha */}
-      <motion.rect
-        x="54"
-        y="108"
-        width="92"
-        height="18"
-        initial={reduce ? false : { x: 200, opacity: 0 }}
-        animate={{ x: 0, opacity: 1 }}
-        transition={{ ...shared, delay: 0.7 }}
+      <motion.circle
+        cx="35.5"
+        cy="32"
+        r="2.25"
+        fill="var(--paper, #f6f1e8)"
+        initial={reduce ? false : { opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.35, delay: 0.5 }}
       />
     </svg>
   );
