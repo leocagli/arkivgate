@@ -156,6 +156,55 @@ async def _persist_interaction(
     await session.commit()
 
 
+async def _persist_and_emit_best_effort(
+    session: AsyncSession,
+    *,
+    trace_id: str,
+    org_id: str,
+    user_id: UUID | None,
+    request_model: str,
+    parsed: MessagesRequest,
+    hits: list[PolicyHit],
+    action: Action,
+    reason: str,
+    latency_total_ms: int,
+    latency_by_layer: dict[str, int],
+    upstream_status: int | None,
+) -> None:
+    # Policy enforcement must not fail closed because audit persistence/bridge
+    # had an operational issue (DB hiccup, bridge timeout, etc.).
+    try:
+        await _persist_interaction(
+            session,
+            trace_id=trace_id,
+            org_id=org_id,
+            user_id=user_id,
+            request_model=request_model,
+            parsed=parsed,
+            hits=hits,
+            action=action,
+            reason=reason,
+            latency_total_ms=latency_total_ms,
+            latency_by_layer=latency_by_layer,
+            upstream_status=upstream_status,
+        )
+    except Exception:
+        logger.exception("[audit] trace=%s failed to persist interaction", trace_id)
+
+    try:
+        await _emit_arkiv_bridge(
+            trace_id=trace_id,
+            org_id=org_id,
+            parsed=parsed,
+            hits=hits,
+            action=action,
+            reason=reason,
+            latency_total_ms=latency_total_ms,
+        )
+    except Exception:
+        logger.exception("[audit] trace=%s failed to emit arkiv bridge", trace_id)
+
+
 # ---------------------------------------------------------------------------
 # /v1/messages â€” the cascade lives here.
 # ---------------------------------------------------------------------------
@@ -289,7 +338,8 @@ async def _process_messages(
             "[done] trace=%s action=BLOCK by=%s/%s",
             trace_id, hit.layer.value, hit.slug,
         )
-        await _persist_interaction(
+        total_ms = int((time.perf_counter() - started) * 1000)
+        await _persist_and_emit_best_effort(
             session,
             trace_id=trace_id,
             org_id=org_id,
@@ -299,18 +349,9 @@ async def _process_messages(
             hits=hits,
             action=action,
             reason=reason,
-            latency_total_ms=int((time.perf_counter() - started) * 1000),
+            latency_total_ms=total_ms,
             latency_by_layer=latency_by_layer,
             upstream_status=None,
-        )
-        await _emit_arkiv_bridge(
-            trace_id=trace_id,
-            org_id=org_id,
-            parsed=parsed,
-            hits=hits,
-            action=action,
-            reason=reason,
-            latency_total_ms=int((time.perf_counter() - started) * 1000),
         )
         if is_streaming:
             return StreamingResponse(
@@ -351,7 +392,8 @@ async def _process_messages(
             (time.perf_counter() - upstream_started) * 1000
         )
 
-        await _persist_interaction(
+        total_ms = int((time.perf_counter() - started) * 1000)
+        await _persist_and_emit_best_effort(
             session,
             trace_id=trace_id,
             org_id=org_id,
@@ -361,18 +403,9 @@ async def _process_messages(
             hits=hits,
             action=action,
             reason=reason,
-            latency_total_ms=int((time.perf_counter() - started) * 1000),
+            latency_total_ms=total_ms,
             latency_by_layer=latency_by_layer,
             upstream_status=upstream_resp.status_code,
-        )
-        await _emit_arkiv_bridge(
-            trace_id=trace_id,
-            org_id=org_id,
-            parsed=parsed,
-            hits=hits,
-            action=action,
-            reason=reason,
-            latency_total_ms=int((time.perf_counter() - started) * 1000),
         )
 
         upstream_headers = filtered_response_headers(upstream_resp.headers)
@@ -411,7 +444,8 @@ async def _process_messages(
 
     # Persist before piping the body â€” we don't read the response body, only
     # relay it. Audit row is written based on the upstream status header.
-    await _persist_interaction(
+    total_ms = int((time.perf_counter() - started) * 1000)
+    await _persist_and_emit_best_effort(
         session,
         trace_id=trace_id,
         org_id=org_id,
@@ -421,18 +455,9 @@ async def _process_messages(
         hits=hits,
         action=action,
         reason=reason,
-        latency_total_ms=int((time.perf_counter() - started) * 1000),
+        latency_total_ms=total_ms,
         latency_by_layer=latency_by_layer,
         upstream_status=upstream_resp.status_code,
-    )
-    await _emit_arkiv_bridge(
-        trace_id=trace_id,
-        org_id=org_id,
-        parsed=parsed,
-        hits=hits,
-        action=action,
-        reason=reason,
-        latency_total_ms=int((time.perf_counter() - started) * 1000),
     )
 
     upstream_headers = filtered_response_headers(upstream_resp.headers)
