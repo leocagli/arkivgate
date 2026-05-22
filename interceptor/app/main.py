@@ -8,6 +8,7 @@ v0.1 supports the LOG (passthrough) and BLOCK (synthetic 200) paths;
 REDACT, WARN, and the pattern/NL layers land in subsequent versions.
 """
 
+import asyncio
 import json
 import logging
 import time
@@ -171,26 +172,33 @@ async def _persist_and_emit_best_effort(
     latency_total_ms: int,
     latency_by_layer: dict[str, int],
     upstream_status: int | None,
+    skip_persist: bool = False,
 ) -> None:
     # Policy enforcement must not fail closed because audit persistence/bridge
     # had an operational issue (DB hiccup, bridge timeout, etc.).
-    try:
-        await _persist_interaction(
-            session,
-            trace_id=trace_id,
-            org_id=org_id,
-            user_id=user_id,
-            request_model=request_model,
-            parsed=parsed,
-            hits=hits,
-            action=action,
-            reason=reason,
-            latency_total_ms=latency_total_ms,
-            latency_by_layer=latency_by_layer,
-            upstream_status=upstream_status,
-        )
-    except Exception:
-        logger.exception("[audit] trace=%s failed to persist interaction", trace_id)
+    if skip_persist:
+        logger.warning("[audit] trace=%s skipping DB persist because runtime context fallback is active", trace_id)
+    else:
+        try:
+            await asyncio.wait_for(
+                _persist_interaction(
+                    session,
+                    trace_id=trace_id,
+                    org_id=org_id,
+                    user_id=user_id,
+                    request_model=request_model,
+                    parsed=parsed,
+                    hits=hits,
+                    action=action,
+                    reason=reason,
+                    latency_total_ms=latency_total_ms,
+                    latency_by_layer=latency_by_layer,
+                    upstream_status=upstream_status,
+                ),
+                timeout=2.0,
+            )
+        except Exception:
+            logger.exception("[audit] trace=%s failed to persist interaction", trace_id)
 
     try:
         await _emit_arkiv_bridge(
@@ -376,6 +384,7 @@ async def _process_messages(
             latency_total_ms=total_ms,
             latency_by_layer=latency_by_layer,
             upstream_status=None,
+            skip_persist=runtime_context is not None,
         )
         if is_streaming:
             return StreamingResponse(
@@ -430,6 +439,7 @@ async def _process_messages(
             latency_total_ms=total_ms,
             latency_by_layer=latency_by_layer,
             upstream_status=upstream_resp.status_code,
+            skip_persist=runtime_context is not None,
         )
 
         upstream_headers = filtered_response_headers(upstream_resp.headers)
@@ -482,6 +492,7 @@ async def _process_messages(
         latency_total_ms=total_ms,
         latency_by_layer=latency_by_layer,
         upstream_status=upstream_resp.status_code,
+        skip_persist=runtime_context is not None,
     )
 
     upstream_headers = filtered_response_headers(upstream_resp.headers)
