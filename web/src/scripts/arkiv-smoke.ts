@@ -6,14 +6,14 @@ import {
   buildPromptReviewEntity,
 } from "../lib/arkiv/entities";
 import { evaluatePromptRisk, promptHash, redactPrompt } from "../lib/arkiv/mappers";
-import { entityExplorerUrl } from "../lib/arkiv/queries";
+import { entityExplorerUrl, transactionExplorerUrl } from "../lib/arkiv/queries";
 
 async function main() {
   const walletClient = getArkivWalletClient();
   const orgKey = process.env.DEMO_ORG_ID ?? "demo";
   const prompt = process.env.TEST_PROMPT ?? "Use AKIA1234567890ABCDEF to deploy now";
 
-  const { entityKey: policyKey } = await walletClient.createEntity(
+  const { entityKey: policyKey, txHash: policyTxHash } = await walletClient.createEntity(
     buildPolicyEntity({
       orgKey,
       name: "Block AWS key leakage",
@@ -24,7 +24,7 @@ async function main() {
   );
 
   const risk = evaluatePromptRisk(prompt);
-  const { entityKey: reviewKey } = await walletClient.createEntity(
+  const { entityKey: reviewKey, txHash: reviewTxHash } = await walletClient.createEntity(
     buildPromptReviewEntity({
       orgKey,
       sessionKey: `session_${Date.now()}`,
@@ -40,7 +40,7 @@ async function main() {
     }),
   );
 
-  const { entityKey: decisionKey } = await walletClient.createEntity(
+  const { entityKey: decisionKey, txHash: decisionTxHash } = await walletClient.createEntity(
     buildPolicyDecisionEntity({
       orgKey,
       promptReviewKey: reviewKey,
@@ -51,9 +51,9 @@ async function main() {
     }),
   );
 
-  console.log("policy", policyKey, entityExplorerUrl(policyKey));
-  console.log("prompt_review", reviewKey, entityExplorerUrl(reviewKey));
-  console.log("policy_decision", decisionKey, entityExplorerUrl(decisionKey));
+  console.log("policy", policyKey, entityExplorerUrl(policyKey), policyTxHash, transactionExplorerUrl(policyTxHash));
+  console.log("prompt_review", reviewKey, entityExplorerUrl(reviewKey), reviewTxHash, transactionExplorerUrl(reviewTxHash));
+  console.log("policy_decision", decisionKey, entityExplorerUrl(decisionKey), decisionTxHash, transactionExplorerUrl(decisionTxHash));
 }
 
 main().catch((err) => {

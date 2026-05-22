@@ -58,6 +58,10 @@ export async function POST(request: Request) {
       policyKey: persisted.policyKey,
       promptReviewKey: persisted.promptReviewKey,
       policyDecisionKey: persisted.policyDecisionKey,
+      policyTxHash: persisted.policyTxHash,
+      promptReviewTxHash: persisted.promptReviewTxHash,
+      policyDecisionTxHash: persisted.policyDecisionTxHash,
+      explorers: persisted.explorers,
     },
   });
 }

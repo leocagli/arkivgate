@@ -9,7 +9,7 @@ import {
   buildPromptReviewEntity,
 } from "@/lib/arkiv/entities";
 import { evaluatePromptRisk, promptHash, redactPrompt } from "@/lib/arkiv/mappers";
-import { entityExplorerUrl, queryUrlFor } from "@/lib/arkiv/queries";
+import { entityExplorerUrl, queryUrlFor, transactionExplorerUrl } from "@/lib/arkiv/queries";
 
 export async function POST(request: NextRequest) {
   const auth = await requireAdminRole();
@@ -32,7 +32,7 @@ export async function POST(request: NextRequest) {
 
   const walletClient = getArkivWalletClient();
 
-  const { entityKey: policyKey } = await walletClient.createEntity(
+  const { entityKey: policyKey, txHash: policyTxHash } = await walletClient.createEntity(
     buildPolicyEntity({
       orgKey: session.orgId,
       name: "Block AWS key leakage",
@@ -45,7 +45,7 @@ export async function POST(request: NextRequest) {
   const started = Date.now();
   const risk = evaluatePromptRisk(prompt);
 
-  const { entityKey: promptReviewKey } = await walletClient.createEntity(
+  const { entityKey: promptReviewKey, txHash: promptReviewTxHash } = await walletClient.createEntity(
     buildPromptReviewEntity({
       orgKey: session.orgId,
       sessionKey,
@@ -61,7 +61,7 @@ export async function POST(request: NextRequest) {
     }),
   );
 
-  const { entityKey: policyDecisionKey } = await walletClient.createEntity(
+  const { entityKey: policyDecisionKey, txHash: policyDecisionTxHash } = await walletClient.createEntity(
     buildPolicyDecisionEntity({
       orgKey: session.orgId,
       promptReviewKey,
@@ -80,15 +80,21 @@ export async function POST(request: NextRequest) {
     entities: {
       policy: {
         key: policyKey,
+        txHash: policyTxHash,
         explorer: entityExplorerUrl(policyKey),
+        txExplorer: transactionExplorerUrl(policyTxHash),
       },
       promptReview: {
         key: promptReviewKey,
+        txHash: promptReviewTxHash,
         explorer: entityExplorerUrl(promptReviewKey),
+        txExplorer: transactionExplorerUrl(promptReviewTxHash),
       },
       policyDecision: {
         key: policyDecisionKey,
+        txHash: policyDecisionTxHash,
         explorer: entityExplorerUrl(policyDecisionKey),
+        txExplorer: transactionExplorerUrl(policyDecisionTxHash),
       },
     },
     queries: {

@@ -82,12 +82,18 @@ export function PolicyPlayground() {
     upstream?: unknown;
     arkiv?: {
       policyKey?: string;
+      policyTxHash?: string;
       promptReviewKey?: string;
+      promptReviewTxHash?: string;
       policyDecisionKey?: string;
+      policyDecisionTxHash?: string;
       explorers?: {
-        policy: string;
+        policy?: string;
         promptReview: string;
         policyDecision: string;
+        policyTx?: string;
+        promptReviewTx: string;
+        policyDecisionTx: string;
       };
     };
     error?: string;
@@ -158,12 +164,18 @@ export function PolicyPlayground() {
         upstream?: unknown;
         arkiv?: {
           policyKey?: string;
+          policyTxHash?: string;
           promptReviewKey?: string;
+          promptReviewTxHash?: string;
           policyDecisionKey?: string;
+          policyDecisionTxHash?: string;
           explorers?: {
-            policy: string;
+            policy?: string;
             promptReview: string;
             policyDecision: string;
+            policyTx?: string;
+            promptReviewTx: string;
+            policyDecisionTx: string;
           };
         };
         error?: string;
@@ -393,8 +405,11 @@ export function PolicyPlayground() {
               <div className="space-y-2 border border-[#1b5a65]/15 bg-white p-3 text-xs text-graphite-dark" style={{ borderRadius: "6px" }}>
                 <p className="font-mono uppercase tracking-[0.12em] text-graphite">arkiv persisted</p>
                 <p>policy: {liveResult.arkiv.policyKey}</p>
+                {liveResult.arkiv.policyTxHash ? <p>policy tx: {liveResult.arkiv.policyTxHash}</p> : null}
                 <p>prompt_review: {liveResult.arkiv.promptReviewKey}</p>
+                <p>prompt_review tx: {liveResult.arkiv.promptReviewTxHash}</p>
                 <p>policy_decision: {liveResult.arkiv.policyDecisionKey}</p>
+                <p>policy_decision tx: {liveResult.arkiv.policyDecisionTxHash}</p>
               </div>
             ) : null}
 

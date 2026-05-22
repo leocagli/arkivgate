@@ -6,7 +6,12 @@ import {
   buildPromptReviewEntity,
 } from "./entities";
 import { evaluatePromptRisk, promptHash, redactPrompt } from "./mappers";
-import { entityExplorerUrl, fetchByEntityType } from "./queries";
+import {
+  entityExplorerUrl,
+  fetchByEntityType,
+  maybeEntityExplorerUrl,
+  transactionExplorerUrl,
+} from "./queries";
 
 export type PersistArkivAuditInput = {
   orgKey: string;
@@ -31,15 +36,34 @@ export type PersistArkivAuditResult = {
   policyKey: string;
   promptReviewKey: string;
   policyDecisionKey: string;
+  policyTxHash?: string;
+  promptReviewTxHash: string;
+  policyDecisionTxHash: string;
   explorers: {
-    policy: string;
+    policy?: string;
     promptReview: string;
     policyDecision: string;
+    policyTx?: string;
+    promptReviewTx: string;
+    policyDecisionTx: string;
   };
 };
 
-async function resolvePolicyKey(orgKey: string, policyKeyHint?: string) {
-  if (policyKeyHint?.trim()) return policyKeyHint.trim();
+type PolicyReference = {
+  key: string;
+  txHash?: string;
+  explorer?: string;
+  txExplorer?: string;
+};
+
+async function resolvePolicyReference(orgKey: string, policyKeyHint?: string): Promise<PolicyReference> {
+  if (policyKeyHint?.trim()) {
+    const key = policyKeyHint.trim();
+    return {
+      key,
+      explorer: maybeEntityExplorerUrl(key),
+    };
+  }
 
   const latestPolicies = await fetchByEntityType(ENTITY_TYPE.policy, 1);
   const latestPolicy = latestPolicies.entities[0] as
@@ -47,7 +71,12 @@ async function resolvePolicyKey(orgKey: string, policyKeyHint?: string) {
     | undefined;
 
   const existingKey = latestPolicy?.key ?? latestPolicy?.entityKey ?? null;
-  if (existingKey) return existingKey;
+  if (existingKey) {
+    return {
+      key: existingKey,
+      explorer: maybeEntityExplorerUrl(existingKey),
+    };
+  }
 
   const walletClient = getArkivWalletClient();
   const createdPolicy = await walletClient.createEntity(
@@ -60,7 +89,12 @@ async function resolvePolicyKey(orgKey: string, policyKeyHint?: string) {
     }),
   );
 
-  return createdPolicy.entityKey;
+  return {
+    key: createdPolicy.entityKey,
+    txHash: createdPolicy.txHash,
+    explorer: entityExplorerUrl(createdPolicy.entityKey),
+    txExplorer: transactionExplorerUrl(createdPolicy.txHash),
+  };
 }
 
 function normalizeAction(action?: ActionType | "PASS") {
@@ -90,7 +124,7 @@ export async function persistArkivPromptAudit(input: PersistArkivAuditInput): Pr
   const finalPromptHash =
     input.promptHash ?? (input.prompt ? promptHash(input.prompt) : promptHash(finalPromptRedacted));
 
-  const policyKey = await resolvePolicyKey(input.orgKey, input.policyKeyHint);
+  const policy = await resolvePolicyReference(input.orgKey, input.policyKeyHint);
 
   const promptReview = await walletClient.createEntity(
     buildPromptReviewEntity({
@@ -113,7 +147,7 @@ export async function persistArkivPromptAudit(input: PersistArkivAuditInput): Pr
     buildPolicyDecisionEntity({
       orgKey: input.orgKey,
       promptReviewKey: promptReview.entityKey,
-      policyKey,
+      policyKey: policy.key,
       finalAction,
       severity: finalSeverity,
       reason: finalReason,
@@ -123,13 +157,19 @@ export async function persistArkivPromptAudit(input: PersistArkivAuditInput): Pr
   );
 
   return {
-    policyKey,
+    policyKey: policy.key,
     promptReviewKey: promptReview.entityKey,
     policyDecisionKey: policyDecision.entityKey,
+    policyTxHash: policy.txHash,
+    promptReviewTxHash: promptReview.txHash,
+    policyDecisionTxHash: policyDecision.txHash,
     explorers: {
-      policy: entityExplorerUrl(policyKey),
+      policy: policy.explorer,
       promptReview: entityExplorerUrl(promptReview.entityKey),
       policyDecision: entityExplorerUrl(policyDecision.entityKey),
+      policyTx: policy.txExplorer,
+      promptReviewTx: transactionExplorerUrl(promptReview.txHash),
+      policyDecisionTx: transactionExplorerUrl(policyDecision.txHash),
     },
   };
 }

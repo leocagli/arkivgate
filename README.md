@@ -52,14 +52,16 @@ ArkivGate is an AI governance platform for development teams. It adds policy enf
 
 Persisted for the validated runtime traces above via the internal Arkiv bridge replay:
 
-- BLOCK prompt review: https://arkiv-testnet-explorer.vercel.app/entity/0x69db399b2e368ad73347359826b7d0f847473cf374bbf8bee78c0cd11d43023b
-- BLOCK policy decision: https://arkiv-testnet-explorer.vercel.app/entity/0x45cba3b64542ffc5916036fcbf48454e1d9d9177e181a6ba54a9da86e27d7195
-- LOG prompt review: https://arkiv-testnet-explorer.vercel.app/entity/0x67488d99db9d82587e377113ce291c581ea4d46600a979cd924fb336183f2f3a
-- LOG policy decision: https://arkiv-testnet-explorer.vercel.app/entity/0x7664c5f7cc6b633061fe73f545ac2556d69375e1d00e8c91955a431484822754
+- BLOCK prompt review entity: https://data.arkiv.network/entity/0x69db399b2e368ad73347359826b7d0f847473cf374bbf8bee78c0cd11d43023b
+- BLOCK policy decision entity: https://data.arkiv.network/entity/0x45cba3b64542ffc5916036fcbf48454e1d9d9177e181a6ba54a9da86e27d7195
+- LOG prompt review entity: https://data.arkiv.network/entity/0x67488d99db9d82587e377113ce291c581ea4d46600a979cd924fb336183f2f3a
+- LOG policy decision entity: https://data.arkiv.network/entity/0x7664c5f7cc6b633061fe73f545ac2556d69375e1d00e8c91955a431484822754
+
+Tx hashes are now captured by the Arkiv persistence helpers and should be linked through `https://data.arkiv.network/?query=<txHash>` instead of the deprecated `arkiv-testnet-explorer.vercel.app` host.
 
 Previous playground validation entity:
 
-- Policy: https://arkiv-testnet-explorer.vercel.app/entity/0xab963b8a0ec8ffec8ff02f2dc89d6bc73dcf952c4230d64040643bded75a30c4
+- Policy: https://data.arkiv.network/entity/0xab963b8a0ec8ffec8ff02f2dc89d6bc73dcf952c4230d64040643bded75a30c4
 
 ## License
 
