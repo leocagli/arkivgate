@@ -25,9 +25,10 @@ function sanitizeProxyUrl(value: string | undefined | null): string | null {
 async function probeProxyHealth(baseUrl: string | null) {
   if (!baseUrl) {
     return {
-      reachable: false,
+      reachable: true,
       status: null as number | null,
-      detail: "Falta ArkivGate_PROXY_URL",
+      detail: "Sin ArkivGate_PROXY_URL: modo embebido activo en web",
+      mode: "embedded" as const,
     };
   }
 
@@ -46,12 +47,14 @@ async function probeProxyHealth(baseUrl: string | null) {
       reachable: response.ok,
       status: response.status,
       detail: response.ok ? "Interceptor responde /health" : body || `HTTP ${response.status}`,
+      mode: "direct" as const,
     };
   } catch (error) {
     return {
       reachable: false,
       status: null as number | null,
       detail: error instanceof Error ? error.message : "proxy unreachable",
+      mode: "direct" as const,
     };
   } finally {
     clearTimeout(timeout);
@@ -69,6 +72,9 @@ export async function GET() {
   const hasBridgeToken = hasValue(process.env.ARKIV_BRIDGE_TOKEN);
   const proxyUrl = sanitizeProxyUrl(process.env.ArkivGate_PROXY_URL);
   const proxyHealth = await probeProxyHealth(proxyUrl);
+  const readyForCoreFlow = hasWallet && hasProject && hasChain;
+  const readyForCurrentMode = readyForCoreFlow && proxyHealth.reachable;
+  const readyForRealMode = readyForCurrentMode && hasBridgeToken && isAuthConfigured && Boolean(proxyUrl);
 
   const items: SetupItem[] = [
     {
@@ -111,10 +117,15 @@ export async function GET() {
 
   return Response.json({
     ok: true,
-    readyForRealMode: items.every((item) => item.ready),
+    operatingMode: proxyHealth.mode,
+    readyForCoreFlow,
+    readyForCurrentMode,
+    readyForRealMode,
+    proxyHealth,
     items,
     recommendedNextSteps: [
-      !proxyHealth.reachable ? "Setear ArkivGate_PROXY_URL al interceptor real" : null,
+      !proxyUrl ? "Si quieres modo real, setea ArkivGate_PROXY_URL al interceptor" : null,
+      proxyUrl && !proxyHealth.reachable ? "El proxy no responde /health; revisar deploy del interceptor" : null,
       !isAuthConfigured ? "Configurar Google OAuth para quitar el bypass demo" : null,
       !hasBridgeToken ? "Definir ARKIV_BRIDGE_TOKEN en interceptor y web" : null,
     ].filter(Boolean),

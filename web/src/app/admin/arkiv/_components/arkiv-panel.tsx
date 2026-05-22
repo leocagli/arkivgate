@@ -40,6 +40,9 @@ type QueryResponse = {
 
 type SetupStatusResponse = {
   ok: boolean;
+  operatingMode?: "embedded" | "direct";
+  readyForCoreFlow?: boolean;
+  readyForCurrentMode?: boolean;
   readyForRealMode: boolean;
   items: Array<{
     key: string;
@@ -236,8 +239,20 @@ export function ArkivPanel() {
         {setupResult ? (
           <div className="space-y-3">
             <div className="flex items-center gap-2 text-xs font-mono uppercase tracking-[0.22em] text-graphite">
-              <span className={`inline-block h-2.5 w-2.5 rounded-full ${setupResult.readyForRealMode ? "bg-emerald-600" : "bg-amber-600"}`} />
-              {setupResult.readyForRealMode ? "real mode ready" : "demo mode active"}
+              <span
+                className={`inline-block h-2.5 w-2.5 rounded-full ${
+                  setupResult.readyForCurrentMode
+                    ? "bg-emerald-600"
+                    : setupResult.readyForRealMode
+                      ? "bg-emerald-600"
+                      : "bg-amber-600"
+                }`}
+              />
+              {setupResult.readyForCurrentMode
+                ? setupResult.operatingMode === "direct"
+                  ? "direct mode active"
+                  : "embedded mode active"
+                : "setup incomplete"}
             </div>
 
             <div className="grid gap-2">
