@@ -50,7 +50,7 @@ ArkivGate is an AI governance platform for development teams. It adds policy enf
 
 ### Arkiv Entities Recorded (Explorer)
 
-Persisted for the validated runtime traces above:
+Persisted for the validated runtime traces above via the internal Arkiv bridge replay:
 
 - BLOCK prompt review: https://arkiv-testnet-explorer.vercel.app/entity/0x69db399b2e368ad73347359826b7d0f847473cf374bbf8bee78c0cd11d43023b
 - BLOCK policy decision: https://arkiv-testnet-explorer.vercel.app/entity/0x45cba3b64542ffc5916036fcbf48454e1d9d9177e181a6ba54a9da86e27d7195
