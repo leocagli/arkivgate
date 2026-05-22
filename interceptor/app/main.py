@@ -200,7 +200,28 @@ async def _persist_and_emit_best_effort(
         except Exception:
             logger.exception("[audit] trace=%s failed to persist interaction", trace_id)
 
-    try:
+    _schedule_arkiv_bridge(
+        trace_id=trace_id,
+        org_id=org_id,
+        parsed=parsed,
+        hits=hits,
+        action=action,
+        reason=reason,
+        latency_total_ms=latency_total_ms,
+    )
+
+
+def _schedule_arkiv_bridge(
+    *,
+    trace_id: str,
+    org_id: str,
+    parsed: MessagesRequest,
+    hits: list[PolicyHit],
+    action: Action,
+    reason: str,
+    latency_total_ms: int,
+) -> None:
+    async def _run() -> None:
         await _emit_arkiv_bridge(
             trace_id=trace_id,
             org_id=org_id,
@@ -210,8 +231,16 @@ async def _persist_and_emit_best_effort(
             reason=reason,
             latency_total_ms=latency_total_ms,
         )
-    except Exception:
-        logger.exception("[audit] trace=%s failed to emit arkiv bridge", trace_id)
+
+    task = asyncio.create_task(_run())
+
+    def _log_bridge_result(done_task: asyncio.Task[None]) -> None:
+        try:
+            done_task.result()
+        except Exception:
+            logger.exception("[audit] trace=%s failed to emit arkiv bridge", trace_id)
+
+    task.add_done_callback(_log_bridge_result)
 
 
 # ---------------------------------------------------------------------------
@@ -585,7 +614,7 @@ async def _emit_arkiv_bridge(
             "agentKey": "agent_arkivgate_proxy",
             "sessionKey": f"session_{trace_id}",
             "createdAt": int(time.time() * 1000),
-            "policyKeyHint": matched_rules[0] if matched_rules else None,
+            "policySlugHint": matched_rules[0] if matched_rules else None,
         },
     )
 

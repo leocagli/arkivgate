@@ -11,6 +11,7 @@ type InterceptorBridgeBody = {
   matchedRules: string[];
   riskScore: number;
   policyKeyHint?: string;
+  policySlugHint?: string;
   sessionKey?: string;
   agentKey?: string;
   latencyMs?: number;
@@ -45,6 +46,7 @@ export async function POST(request: Request) {
     matchedRules: body.matchedRules,
     riskScore: body.riskScore,
     policyKeyHint: body.policyKeyHint,
+    policySlugHint: body.policySlugHint,
     sessionKey: body.sessionKey,
     agentKey: body.agentKey,
     latencyMs: body.latencyMs,

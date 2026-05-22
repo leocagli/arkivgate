@@ -9,6 +9,7 @@ import { evaluatePromptRisk, promptHash, redactPrompt } from "./mappers";
 import {
   entityExplorerUrl,
   fetchByEntityType,
+  isHexIdentifier,
   maybeEntityExplorerUrl,
   transactionExplorerUrl,
 } from "./queries";
@@ -26,6 +27,7 @@ export type PersistArkivAuditInput = {
   matchedRules?: string[];
   riskScore?: number;
   policyKeyHint?: string;
+  policySlugHint?: string;
   sessionKey?: string;
   agentKey?: string;
   latencyMs?: number;
@@ -56,12 +58,41 @@ type PolicyReference = {
   txExplorer?: string;
 };
 
-async function resolvePolicyReference(orgKey: string, policyKeyHint?: string): Promise<PolicyReference> {
-  if (policyKeyHint?.trim()) {
-    const key = policyKeyHint.trim();
+async function resolvePolicyReference(
+  orgKey: string,
+  options: {
+    policyKeyHint?: string;
+    policySlugHint?: string;
+    action: ActionType;
+    severity: SeverityType;
+  },
+): Promise<PolicyReference> {
+  if (options.policyKeyHint?.trim() && isHexIdentifier(options.policyKeyHint.trim())) {
+    const key = options.policyKeyHint.trim();
     return {
       key,
       explorer: maybeEntityExplorerUrl(key),
+    };
+  }
+
+  if (options.policySlugHint?.trim()) {
+    const slug = options.policySlugHint.trim();
+    const walletClient = getArkivWalletClient();
+    const createdPolicy = await walletClient.createEntity(
+      buildPolicyEntity({
+        orgKey,
+        name: `Runtime policy: ${slug}`,
+        pattern: slug,
+        action: options.action,
+        severity: options.severity,
+      }),
+    );
+
+    return {
+      key: createdPolicy.entityKey,
+      txHash: createdPolicy.txHash,
+      explorer: entityExplorerUrl(createdPolicy.entityKey),
+      txExplorer: transactionExplorerUrl(createdPolicy.txHash),
     };
   }
 
@@ -124,7 +155,12 @@ export async function persistArkivPromptAudit(input: PersistArkivAuditInput): Pr
   const finalPromptHash =
     input.promptHash ?? (input.prompt ? promptHash(input.prompt) : promptHash(finalPromptRedacted));
 
-  const policy = await resolvePolicyReference(input.orgKey, input.policyKeyHint);
+  const policy = await resolvePolicyReference(input.orgKey, {
+    policyKeyHint: input.policyKeyHint,
+    policySlugHint: input.policySlugHint,
+    action: finalAction,
+    severity: finalSeverity,
+  });
 
   const promptReview = await walletClient.createEntity(
     buildPromptReviewEntity({
