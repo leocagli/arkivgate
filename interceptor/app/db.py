@@ -1,5 +1,6 @@
 from collections.abc import AsyncIterator
-from urllib.parse import urlparse
+import ssl
+from urllib.parse import urlparse, urlunparse, urlencode, parse_qs
 
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -7,14 +8,27 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from .config import settings
 
 
+# asyncpg does not accept these psycopg2-style query params in the DSN.
+_ASYNCPG_UNSUPPORTED_PARAMS = {"sslmode", "sslcert", "sslkey", "sslrootcert"}
+
+
 def _normalize_url(url: str) -> str:
     """Accept the conventional `postgresql://...` DSN that Supabase, Neon and
-    Railway hand out, and rewrite it to the asyncpg driver SQLAlchemy needs."""
+    Railway hand out, and rewrite it to the asyncpg driver SQLAlchemy needs.
+    Also strips psycopg2-style query params that asyncpg does not understand
+    (e.g. sslmode=require) since SSL is handled via connect_args instead."""
     if url.startswith("postgresql://"):
-        return "postgresql+asyncpg://" + url[len("postgresql://") :]
-    if url.startswith("postgres://"):
-        return "postgresql+asyncpg://" + url[len("postgres://") :]
-    return url
+        base = "postgresql+asyncpg://" + url[len("postgresql://") :]
+    elif url.startswith("postgres://"):
+        base = "postgresql+asyncpg://" + url[len("postgres://") :]
+    else:
+        base = url
+
+    parsed = urlparse(base)
+    qs = parse_qs(parsed.query, keep_blank_values=True)
+    filtered = {k: v for k, v in qs.items() if k not in _ASYNCPG_UNSUPPORTED_PARAMS}
+    new_query = urlencode(filtered, doseq=True)
+    return urlunparse(parsed._replace(query=new_query))
 
 
 def _connect_args(url: str) -> dict:
