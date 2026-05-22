@@ -70,6 +70,10 @@ export function PolicyPlayground() {
   const [cliToken, setCliToken] = useState("");
   const [proxyUrl, setProxyUrl] = useState("");
   const [runningLiveTest, setRunningLiveTest] = useState(false);
+  const [attemptStatus, setAttemptStatus] = useState<{
+    prompt: string;
+    source: "sample" | "manual";
+  } | null>(null);
   const [liveResult, setLiveResult] = useState<{
     ok: boolean;
     status: number;
@@ -142,14 +146,18 @@ export function PolicyPlayground() {
     }
   }
 
-  async function runLiveTest() {
+  async function runLiveTest(promptOverride?: string, source: "sample" | "manual" = "manual") {
+    const promptToTest = (promptOverride ?? input).trim();
+    if (!promptToTest || runningLiveTest) return;
+
+    setAttemptStatus({ prompt: promptToTest, source });
     setRunningLiveTest(true);
     setLiveResult(null);
     try {
       const response = await fetch("/api/playground/interceptor-test", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ prompt: input, cliToken, proxyUrl }),
+        body: JSON.stringify({ prompt: promptToTest, cliToken, proxyUrl }),
       });
 
       const data = (await response.json().catch(() => null)) as {
@@ -219,8 +227,129 @@ export function PolicyPlayground() {
     }
   }
 
+  function runPresetAttempt(preset: string) {
+    setInput(preset);
+    void runLiveTest(preset, "sample");
+  }
+
+  const showAttemptStatus = attemptStatus !== null;
+
   return (
     <section id="playground" className="mx-auto w-full max-w-6xl px-6 py-16 md:py-20">
+      {showAttemptStatus ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#092126]/55 px-4 py-8">
+          <div className="w-full max-w-2xl border border-[#1b5a65]/25 bg-paper p-5 shadow-2xl" style={{ borderRadius: "8px" }}>
+            <div className="mb-4 flex items-start justify-between gap-4">
+              <div>
+                <p className="font-mono text-xs uppercase tracking-[0.18em] text-[#1b5a65]">
+                  {attemptStatus.source === "sample" ? "example prompt status" : "prompt status"}
+                </p>
+                <h3 className="mt-2 text-xl font-semibold text-ink">
+                  {runningLiveTest ? "Procesando intento..." : "Intento registrado"}
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setAttemptStatus(null)}
+                className="border border-[#7a8f93]/35 bg-white px-2.5 py-1 font-mono text-[11px] uppercase tracking-[0.12em] text-graphite transition-colors hover:bg-[#f3f6f6]"
+                style={{ borderRadius: "6px" }}
+              >
+                cerrar
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              <div className="border border-[#1b5a65]/15 bg-[#f7fbfa] p-3 text-sm text-ink" style={{ borderRadius: "6px" }}>
+                {attemptStatus.prompt}
+              </div>
+
+              {runningLiveTest ? (
+                <div className="space-y-2 border border-[#1b5a65]/15 bg-white p-4 text-sm text-graphite-dark" style={{ borderRadius: "6px" }}>
+                  <p>Validando el prompt contra el interceptor y persistiendo evidencia en Arkiv...</p>
+                  <p className="font-mono text-xs uppercase tracking-[0.12em] text-[#1b5a65]">esperando respuesta</p>
+                </div>
+              ) : liveResult ? (
+                <div className="space-y-3">
+                  <div className="flex flex-wrap gap-2">
+                    <span className="border border-[#1b5a65]/25 bg-white px-2.5 py-1 font-mono text-[11px] uppercase tracking-[0.12em] text-[#1b5a65]" style={{ borderRadius: "6px" }}>
+                      status: {liveResult.status}
+                    </span>
+                    <span className="border border-[#1b5a65]/25 bg-white px-2.5 py-1 font-mono text-[11px] uppercase tracking-[0.12em] text-[#1b5a65]" style={{ borderRadius: "6px" }}>
+                      action: {liveResult.action ?? "n/a"}
+                    </span>
+                    <span className="border border-[#1b5a65]/25 bg-white px-2.5 py-1 font-mono text-[11px] uppercase tracking-[0.12em] text-[#1b5a65]" style={{ borderRadius: "6px" }}>
+                      latency: {liveResult.elapsedMs}ms
+                    </span>
+                  </div>
+
+                  {liveResult.traceId ? (
+                    <p className="text-xs text-graphite-dark">trace: {liveResult.traceId}</p>
+                  ) : null}
+
+                  {liveResult.arkiv?.explorers ? (
+                    <div className="space-y-2 border border-[#1b5a65]/15 bg-white p-4 text-sm text-ink" style={{ borderRadius: "6px" }}>
+                      <p className="font-mono text-xs uppercase tracking-[0.14em] text-graphite">arkiv evidence</p>
+                      <div className="flex flex-wrap gap-2 text-xs">
+                        <a
+                          href={liveResult.arkiv.explorers.promptReviewTx}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="border border-[#1b5a65]/25 bg-[#edf5f4] px-2.5 py-1 font-mono uppercase tracking-[0.12em] text-[#1b5a65] transition-colors hover:bg-[#e1edeb]"
+                          style={{ borderRadius: "6px" }}
+                        >
+                          prompt review tx
+                        </a>
+                        <a
+                          href={liveResult.arkiv.explorers.policyDecisionTx}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="border border-[#1b5a65]/25 bg-[#edf5f4] px-2.5 py-1 font-mono uppercase tracking-[0.12em] text-[#1b5a65] transition-colors hover:bg-[#e1edeb]"
+                          style={{ borderRadius: "6px" }}
+                        >
+                          policy decision tx
+                        </a>
+                        <a
+                          href={liveResult.arkiv.explorers.promptReview}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="border border-[#1b5a65]/25 bg-white px-2.5 py-1 font-mono uppercase tracking-[0.12em] text-[#1b5a65] transition-colors hover:bg-[#edf5f4]"
+                          style={{ borderRadius: "6px" }}
+                        >
+                          prompt review entity
+                        </a>
+                        <a
+                          href={liveResult.arkiv.explorers.policyDecision}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="border border-[#1b5a65]/25 bg-white px-2.5 py-1 font-mono uppercase tracking-[0.12em] text-[#1b5a65] transition-colors hover:bg-[#edf5f4]"
+                          style={{ borderRadius: "6px" }}
+                        >
+                          policy decision entity
+                        </a>
+                        {liveResult.arkiv.explorers.policyTx ? (
+                          <a
+                            href={liveResult.arkiv.explorers.policyTx}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="border border-[#1b5a65]/25 bg-white px-2.5 py-1 font-mono uppercase tracking-[0.12em] text-[#1b5a65] transition-colors hover:bg-[#edf5f4]"
+                            style={{ borderRadius: "6px" }}
+                          >
+                            policy tx
+                          </a>
+                        ) : null}
+                      </div>
+                    </div>
+                  ) : null}
+
+                  {liveResult.hint ? <p className="text-sm text-[#8a5f1f]">{liveResult.hint}</p> : null}
+                  {liveResult.error ? <p className="text-sm text-[#8a2d2d]">{liveResult.error}: {liveResult.detail}</p> : null}
+                </div>
+              ) : null}
+            </div>
+          </div>
+        </div>
+      ) : null}
+
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <div>
           <p className="font-mono text-xs uppercase tracking-[0.18em] text-[#1b5a65]">interactive</p>
@@ -256,7 +385,8 @@ export function PolicyPlayground() {
               <button
                 key={preset}
                 type="button"
-                onClick={() => setInput(preset)}
+                onClick={() => runPresetAttempt(preset)}
+                disabled={runningLiveTest}
                 className="border border-[#1b5a65]/25 bg-white px-2.5 py-1 font-mono text-[11px] uppercase tracking-[0.12em] text-[#1b5a65] transition-colors hover:bg-[#edf5f4]"
                 style={{ borderRadius: "6px" }}
               >
@@ -342,7 +472,7 @@ export function PolicyPlayground() {
           <p className="font-mono text-xs uppercase tracking-[0.14em] text-graphite">live interceptor test</p>
           <button
             type="button"
-            onClick={runLiveTest}
+              onClick={() => void runLiveTest(undefined, "manual")}
             disabled={runningLiveTest || input.trim().length === 0}
             className="border border-[#1b5a65]/25 bg-[#1b5a65] px-3 py-1.5 font-mono text-[11px] uppercase tracking-[0.12em] text-white transition-colors hover:bg-[#144a53] disabled:cursor-not-allowed disabled:opacity-60"
             style={{ borderRadius: "6px" }}
