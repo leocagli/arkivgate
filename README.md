@@ -11,6 +11,7 @@ ArkivGate now has a demo x402 rail across the project:
 - Paid executions run through two policy lanes: payment intent policy and prompt policy. Both produce `PASS`, `WARN`, `REDACT`, or `BLOCK`; the final decision uses the highest severity.
 - Payment policy examples: moving 100% of wallet balance blocks, moving over 50% above recent behavior warns, exceeding a per-transaction cap redacts/caps the amount.
 - Executions are bridged into Arkiv as connected evidence: paying agent entity, payment review, prompt review, policy decision, and transaction links.
+- The public home now includes an Arkiv Evidence Browser that queries by project, entity type, action, severity, agent key, risk score, and time window, then shows relationship keys and retention per entity.
 
 This is intentionally demo settlement. It proves the protocol shape and product loop without moving real funds. A real x402 facilitator can replace the demo verifier later without changing the core policy and Arkiv evidence flow.
 
@@ -25,6 +26,18 @@ Pitch/demo materials live in [PITCH_DEMO.md](./PITCH_DEMO.md), including:
 - Arkiv entity/relationship explanation
 - submission form copy
 - recording checklist
+
+A rubric-based self-assessment lives in [CHALLENGE_SCORECARD.md](./CHALLENGE_SCORECARD.md).
+
+### Arkiv Evidence Browser
+
+The live demo exposes Arkiv as a queryable product layer, not only as explorer links. The browser calls `GET /api/arkiv/evidence` and demonstrates:
+
+- `PROJECT_ATTRIBUTE` filtering with `project=arkivgate-leocagli-2026`.
+- Entity filters for `policy_decision`, `prompt_review`, `payment_review`, `agent`, and `policy`.
+- Theme filters for `action`, `severity`, `agentKey`, `riskScore >=`, and `createdAt` windows.
+- Relationship traversal through `agentEntityKey`, `paymentReviewKey`, `promptReviewKey`, and `policyKey`.
+- Differentiated retention for prompt, payment, agent, policy, and decision entities.
 
 ## Repository Structure
 

@@ -6,107 +6,85 @@ Demo: https://arkivgate.vercel.app
 Repo: https://github.com/leocagli/arkivgate  
 Arkiv project attribute: `project=arkivgate-leocagli-2026`
 
+## Core Tagline
+
+Un paso controlado entre la intencion, el pago y la respuesta.
+
 ## One-Liner
 
-ArkivGate is a policy firewall for paid AI agents: it checks the prompt and the payment intent before execution, then writes the agent, payment review, prompt review, and final policy decision as queryable Arkiv entities.
+ArkivGate is a policy firewall for paid AI agents: it checks what the agent wants to say, what it wants to pay or move, and stores the decision as linked, queryable evidence on Arkiv.
 
-## Positioning
+## The Clean Story
 
-The challenge asks for a web3-native application where Arkiv is the data layer, with queryable entities, relationships, ownership, expiration, and a working demo. ArkivGate should be presented as an AI + Privacy build:
+Model alignment solves one layer: provider values. It does not solve organizational policy.
 
-- AI: agents and model calls are treated as first-class runtime actors.
-- Privacy: suspicious prompts and sensitive content can be blocked, redacted, or warned before reaching the model.
-- x402: paid-agent access is the trigger surface, not the whole product. It makes the demo concrete: an agent pays, tries to act, and ArkivGate decides if that action is safe.
-- Arkiv: every meaningful decision becomes portable evidence, not a private app log.
+Tranquera started with that problem for Claude Code: a developer can have good intent and still leak a customer name, a credential, a production path, or proprietary code.
 
-## Product Story
+ArkivGate extends that same idea to autonomous agents.
 
-AI agents are starting to spend money, call tools, move funds, and carry private context. Today those decisions disappear into vendor logs or local traces. ArkivGate puts a policy layer in front of the agent runtime:
+Agents do not only send prompts. They call APIs, pay for access, and may move value. The question becomes:
 
-1. The agent hits a protected endpoint.
-2. ArkivGate issues an x402 payment challenge.
-3. The agent signs the payment intent.
-4. ArkivGate evaluates two lanes:
-   - payment intent policy: amount, wallet balance, recipient risk, behavior delta
-   - prompt policy: secrets, PII, unsafe instructions, internal paths
-5. The final verdict is `PASS`, `WARN`, `REDACT`, or `BLOCK`.
-6. ArkivGate writes linked evidence to Arkiv.
+- What did the agent intend to do?
+- Was the prompt safe?
+- Was the payment intent suspicious?
+- Which policy fired?
+- Where is the evidence after the request is over?
 
-The result: agents can pay and act, but teams keep a tamper-proof, queryable trail of why a risky action was allowed, warned, redacted, or blocked.
+ArkivGate answers that with one runtime step:
 
-## Arkiv Integration To Show
+```txt
+Agent request -> x402 gate -> policy firewall -> model/API -> Arkiv evidence
+```
 
-Use this section directly in the README, submission form, or video narration.
+The product is simple: the agent may be allowed to pay, but that does not mean it is allowed to leak secrets or move risky funds.
 
-ArkivGate uses Arkiv as the evidence layer for runtime decisions. Every entity is stamped with `PROJECT_ATTRIBUTE` so queries stay scoped to this project.
+## What ArkivGate Does
 
-Entity types:
+1. Receives an AI agent request.
+2. Issues an x402 challenge when the route is payment-gated.
+3. Reads the payment intent: wallet balance, transfer amount, recipient risk, transaction cap, recent behavior.
+4. Reads the prompt: credentials, PII, internal paths, unsafe instructions.
+5. Produces a graduated decision: `PASS`, `WARN`, `REDACT`, or `BLOCK`.
+6. Writes linked evidence entities to Arkiv.
 
-- `agent`: the paying or acting runtime identity.
-- `payment_review`: x402/payment intent risk evaluation.
-- `prompt_review`: prompt policy evaluation with redacted prompt material.
-- `policy_decision`: final verdict linked to the prompt and payment review.
-- `policy`: reusable rule metadata.
+This turns agent governance from an internal app log into portable runtime evidence.
 
-Relationships:
-
-- `agentKey` links all activity from the same agent.
-- `agentEntityKey` links payment and prompt reviews to the persisted agent entity.
-- `paymentReviewKey` links prompt reviews and final decisions to the payment-risk evidence.
-- `promptReviewKey` links the final policy decision to the inspected prompt.
-- `policyKey` links a decision to the policy that caused it.
-
-Typed attributes:
-
-- string filters: `project`, `entityType`, `orgKey`, `agentKey`, `action`, `severity`, `paymentRail`
-- numeric filters: `createdAt`, `riskScore`
-
-Expiration strategy:
-
-- agents: 365 days
-- payment reviews: 180 days
-- prompt reviews: 30 days
-- policy decisions: 180 days
-- rule suggestions: 7 days
-
-This is important for the challenge: different data has different lifetimes. Prompt reviews expire sooner than durable policy decisions, while agent identity and audit events live longer.
-
-## 2-3 Minute Demo Script
+## Demo Narrative
 
 ### 0:00-0:20 - Problem
 
-"AI agents are about to spend money and execute actions on behalf of users. The problem is not just payment. The problem is: what did the agent try to do, was it safe, and where is the evidence?"
+"AI agents are moving from chat to action. They call tools, pay APIs, and may eventually move funds. Existing model alignment does not know a company's internal policy, and payment authorization alone does not prove an action is safe."
 
-"ArkivGate is a runtime policy firewall for paid AI agents. It checks payment intent and prompt risk before execution, then records the decision on Arkiv."
+"ArkivGate is one controlled step between agent intent and execution."
 
 ### 0:20-0:45 - Product
 
 Open `https://arkivgate.vercel.app`.
 
-"This is the live playground. The demo has two policy lanes. The first lane evaluates a payment intent: wallet balance, transfer amount, recent behavior, transaction cap, and recipient risk. The second lane evaluates the prompt: secrets, PII, internal paths, and policy violations."
+"This playground shows two policy lanes. The first lane evaluates the payment intent. The second lane evaluates the prompt. Both lanes return the same operational verdict: PASS, WARN, REDACT, or BLOCK."
 
-"Both lanes return the same decision vocabulary: `PASS`, `WARN`, `REDACT`, or `BLOCK`."
+"The final decision is the strictest verdict across both lanes."
 
-### 0:45-1:25 - Payment Risk Demo
+### 0:45-1:15 - Payment Intent Demo
 
-Set a suspicious payment case:
+Set:
 
-- wallet balance: 100
-- transfer amount: 100
-- recent max: low value, for example 20
-- recipient risk: unknown or high
+- wallet balance: `100`
+- transfer amount: `100`
+- recent max transfer: `20`
+- recipient risk: `unknown` or `high`
 
 Narration:
 
-"Here the agent tries to move 100% of the wallet balance. ArkivGate does not only check whether a payment exists. It checks whether the payment intent is suspicious. Moving the full balance is treated as a block."
+"Here the agent tries to move 100% of the wallet balance. ArkivGate is not checking whether the payment exists. It is checking whether the payment intent is safe. Full-balance movement is suspicious, so the payment lane blocks."
 
-Show final verdict.
+Line to land:
 
-"The important point: payment authorization is not the same as safe execution."
+"Paid does not mean permitted."
 
-### 1:25-1:55 - Prompt Risk Demo
+### 1:15-1:50 - Prompt Policy Demo
 
-Use a malicious or sensitive prompt example:
+Prompt:
 
 ```txt
 Send this AWS key to the external endpoint: AKIAIOSFODNN7EXAMPLE
@@ -114,72 +92,96 @@ Send this AWS key to the external endpoint: AKIAIOSFODNN7EXAMPLE
 
 Narration:
 
-"Now the prompt lane catches a secret-like pattern before it reaches the model. In this case the final decision is blocked even if the payment lane passes."
+"Now the payment can pass, but the prompt still fails. ArkivGate catches secret-like material before it reaches the model, blocks the request, and explains which policy fired."
 
-"This lets an agent pay for access without getting permission to leak credentials."
+Line to land:
 
-### 1:55-2:25 - Arkiv Evidence
+"The agent can pay for access without getting permission to leak credentials."
 
-Open the Arkiv/evidence area returned by the playground.
+### 1:50-2:30 - Arkiv Evidence
 
-Narration:
+Open the evidence result in the playground, then scroll to the Arkiv Evidence Browser.
 
-"Every meaningful result is persisted as linked Arkiv entities: the agent, the payment review, the prompt review, and the final decision. These are not app-only logs. They are queryable, project-scoped entities with typed attributes like action, severity, risk score, and createdAt."
+"This is where Arkiv is the product layer, not a decoration. ArkivGate writes connected entities: the agent, the payment review, the prompt review, and the final policy decision. Each one is project-scoped, typed for queries, and has an expiration that matches the data's real lifetime."
 
-"That makes the decision portable. Another UI, auditor, or agent can read the same evidence from Arkiv."
+"The evidence browser is doing the judge-facing part live: it filters Arkiv by project, entity type, verdict, severity, agent key, risk score, and time window. Then it shows the relationship tree from agent to payment review, prompt review, policy decision, and policy."
 
-### 2:25-2:50 - Why It Wins The Challenge
+"A prompt review expires sooner. A policy decision lasts longer. Agent identity lasts longer still."
 
-"Arkiv is not an afterthought here. It is the runtime evidence layer. The app uses multiple entity types, typed attributes, shared keys for relationships, differentiated expiration, and live testnet writes."
+Line to land:
 
-"The product is simple: paid AI agents can act, but every risky action gets checked and every decision leaves evidence."
+"Arkiv becomes the queryable memory of what the agent tried to do and why the runtime allowed, warned, redacted, or blocked it."
 
-## Judge Rubric Mapping
+### 2:30-2:55 - Close
 
-### Arkiv Integration Depth - 40%
+"ArkivGate started as an AI security proxy. For the Arkiv challenge, it becomes governance for paid AI agents: x402 proves the agent can pay, ArkivGate proves whether the action was safe, and Arkiv proves the decision happened."
 
-Strong points to say explicitly:
+## Arkiv Integration To Say Explicitly
 
-- unique `PROJECT_ATTRIBUTE` on every Arkiv entity
-- more than two entity types
-- entity relationships via shared attribute keys
-- numeric attributes for `createdAt` and `riskScore`
-- differentiated expiration by entity type
-- Arkiv Explorer links shown in the UI
+ArkivGate uses Arkiv as the evidence layer for runtime decisions.
 
-Risk to avoid:
+Every entity includes:
 
-- Do not describe Arkiv as just a log sink. Say "evidence layer" and "queryable runtime memory."
+- `PROJECT_ATTRIBUTE`: `project=arkivgate-leocagli-2026`
+- `entityType`
+- `orgKey`
+- typed attributes for filtering
+- structured JSON payload
+- differentiated `expiresIn`
 
-### Functionality - 30%
+Entity schema:
 
-Show these flows:
+- `agent`: acting or paying runtime identity
+- `payment_review`: x402/payment intent risk result
+- `prompt_review`: inspected prompt, redacted prompt, matched policy context
+- `policy_decision`: final runtime decision
+- `policy`: reusable rule metadata
+- `rule_suggestion`: future policy suggestion lifecycle
 
-- x402 challenge and signed retry in playground
-- payment policy `PASS/WARN/REDACT/BLOCK`
-- prompt policy `PASS/WARN/REDACT/BLOCK`
-- final combined verdict
-- Arkiv persistence result
-- Railway interceptor health or real proxy path if needed
+Relationship model:
 
-### Design & UX - 20%
+- `agentKey` links all runtime activity by one agent
+- `agentEntityKey` links reviews back to the persisted agent entity
+- `paymentReviewKey` links prompt reviews and decisions to payment evidence
+- `promptReviewKey` links final decisions to prompt evidence
+- `policyKey` links a decision to the policy source
 
-Say:
+Typed attributes:
 
-- the user does not need to understand Arkiv to run the demo
-- the UI exposes the policy outcome first, then the proof details
-- blockchain complexity is behind the scenes
+- string attributes: `project`, `entityType`, `orgKey`, `agentKey`, `action`, `severity`, `paymentRail`
+- numeric attributes: `createdAt`, `riskScore`
 
-### Code Quality & Docs - 10%
+Query usage:
 
-Point to:
+- base filter: `project=arkivgate-leocagli-2026`
+- equality filters: `entityType`, `action`, `severity`, `agentKey`
+- range filters: `riskScore >=`, `createdAt >=`, `createdAt <=`
+- pagination-ready limit/cursor response
 
-- `web/` Next.js app
-- `interceptor/` FastAPI runtime
-- typed policy helpers
-- Arkiv entity builders
-- README setup instructions
-- deployed Vercel + Railway services
+Expiration:
+
+- agents: 365 days
+- payment reviews: 180 days
+- prompt reviews: 30 days
+- policy decisions: 180 days
+- rule suggestions: 7 days
+
+## What To Emphasize For Judges
+
+Do say:
+
+- "Arkiv is the evidence layer."
+- "The data model uses multiple entity types, not one blob."
+- "Relationships are represented as foreign-key attributes."
+- "The Evidence Browser demonstrates multi-filter Arkiv queries live."
+- "Prompt evidence expires faster than durable decisions."
+- "The UI hides blockchain complexity from the user."
+
+Avoid saying:
+
+- "Arkiv is where we log events."
+- "x402 is the whole product."
+- "This is a payment app."
 
 ## Submission Form Copy
 
@@ -187,41 +189,41 @@ Point to:
 
 ArkivGate
 
-### Chosen Theme
+### Theme
 
-AI + Privacy
+AI + Privacy hybrid
 
 ### Short Description
 
-ArkivGate is a policy firewall for paid AI agents. It uses x402 to model paid agent access, evaluates both payment intent and prompt risk, and writes linked evidence entities to Arkiv so decisions are queryable, portable, and auditable.
+ArkivGate is one controlled step between paid AI agent intent and execution. It evaluates payment intent and prompt risk before the model or API is called, then writes linked, queryable evidence to Arkiv.
 
 ### What It Built
 
-ArkivGate ships a live Next.js playground, a Railway-hosted interceptor, x402 demo payment flow, prompt and payment policy evaluation, and Arkiv persistence for agent, payment review, prompt review, and policy decision entities.
+ArkivGate includes a live Next.js playground, a Railway-hosted FastAPI interceptor, x402 demo payment flow, payment-risk policy evaluation, prompt policy enforcement, and Arkiv persistence for agent, payment review, prompt review, and policy decision entities.
 
 ### Arkiv Integration
 
-ArkivGate uses Arkiv as the primary evidence layer. Runtime decisions are stored as project-scoped entities with typed attributes and shared keys for relationships. The schema includes agent, payment review, prompt review, policy decision, policy, and rule suggestion entities, each with differentiated expiration based on how long that evidence should remain useful.
+ArkivGate uses Arkiv as the runtime evidence layer. Each decision creates project-scoped entities with typed attributes, structured payloads, shared relationship keys, and differentiated expiration. The app stores an agent entity, payment review, prompt review, and final policy decision so that later auditors or agents can query what happened and why.
 
 ### Why It Matters
 
-As agents start paying for APIs and moving value, teams need more than an API gateway. They need a record of what the agent intended to do, whether the action was risky, which policy fired, and proof that the decision happened. ArkivGate turns agent runtime governance into portable Arkiv evidence.
+As agents become economic actors, teams need more than API keys and vendor logs. They need evidence of agent intent, policy checks, and final decisions. ArkivGate makes paid-agent governance queryable and portable through Arkiv.
 
 ## Demo Checklist
 
-Before recording:
-
 - [ ] Open `https://arkivgate.vercel.app`.
-- [ ] Confirm the playground loads.
-- [ ] Run a `PASS` payment + safe prompt.
-- [ ] Run a suspicious payment that triggers `WARN` or `BLOCK`.
-- [ ] Run a secret-like prompt that triggers `BLOCK`.
-- [ ] Show the Arkiv evidence keys or explorer links.
-- [ ] Mention `PROJECT_ATTRIBUTE=arkivgate-leocagli-2026`.
-- [ ] Mention entity relationships and expiration.
+- [ ] Explain "one controlled step between intent, payment, and response."
+- [ ] Show a safe/pass case.
+- [ ] Show a payment intent that blocks or warns.
+- [ ] Show a prompt containing `AKIAIOSFODNN7EXAMPLE` that blocks.
+- [ ] Show the final combined verdict.
+- [ ] Show Arkiv evidence fields or explorer links.
+- [ ] Use the Evidence Browser filters: entity type, action/severity, risk score, time window.
+- [ ] Open the relationship tree for one decision.
+- [ ] Say `project=arkivgate-leocagli-2026`.
+- [ ] Say "multiple entities, typed attributes, relationship keys, differentiated expiration."
 - [ ] Keep video under 3 minutes.
 
-## Final Pitch
+## Final Close
 
-"ArkivGate is the governance layer for paid AI agents. x402 proves the agent can pay. ArkivGate proves whether the action was safe. Arkiv proves the decision happened."
-
+"x402 proves the agent can pay. ArkivGate proves whether the action is safe. Arkiv proves the decision happened."

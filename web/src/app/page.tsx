@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { EvidenceBrowser } from "./_components/evidence-browser";
 import { PolicyPlayground } from "./_components/policy-playground";
 import { SiteHeader } from "./_components/site-header";
 
@@ -150,6 +151,8 @@ export default function HomePage() {
       </section>
 
       <PolicyPlayground />
+
+      <EvidenceBrowser />
 
       <section id="producto" className="mx-auto w-full max-w-6xl px-6 py-16 md:py-20">
         <h2 className="mb-3 text-2xl font-semibold md:text-3xl">Producto</h2>
