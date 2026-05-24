@@ -38,6 +38,8 @@ export async function GET(request: NextRequest) {
         ? requestedSeverity.toLowerCase()
         : undefined,
     agentKey: readString(url.searchParams.get("agentKey")),
+    owner: readString(url.searchParams.get("owner")),
+    creator: readString(url.searchParams.get("creator")),
     minRiskScore: readNumber(url.searchParams.get("minRiskScore")),
     createdAfter: readNumber(url.searchParams.get("createdAfter")),
     createdBefore: readNumber(url.searchParams.get("createdBefore")),

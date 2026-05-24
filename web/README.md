@@ -144,6 +144,11 @@ conectada pasa a ser el `payer` del x402 demo y el `agentKey` usado para filtrar
 evidencia. Si falta esa env, el botón intenta usar una wallet inyectada del
 browser para no bloquear la demo local.
 
+La landing tambien incluye un write directo desde wallet: `agent_profile`.
+Ese create usa `createWalletClient({ transport: custom(walletProvider) })`, por
+lo que la entidad queda con `$owner` y `$creator` de la wallet conectada. Igual
+que las entidades backend, tambien lleva `PROJECT_ATTRIBUTE`.
+
 El playground tiene dos policy lanes con el mismo vocabulario:
 
 - `x402 payment policy`: evalua balance, monto a transferir, historial, cap por transaccion y riesgo del recipient.

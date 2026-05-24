@@ -165,7 +165,8 @@ Wallet model:
 - WalletConnect/Reown connects an EVM wallet on Arkiv Braga.
 - The connected wallet address becomes the x402 payer and `agentKey`.
 - Evidence Browser can filter decisions by that wallet-derived `agentKey`.
-- Current Arkiv writes still use the backend service wallet as trusted creator; end-user Arkiv ownership is the next production step.
+- The user can create an `agent_profile` directly from the connected wallet; that entity has `$owner` and `$creator` equal to the user wallet.
+- Runtime evidence still uses the backend service wallet as trusted creator for audit integrity.
 
 Expiration:
 

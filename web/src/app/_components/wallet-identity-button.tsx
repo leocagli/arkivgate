@@ -16,19 +16,9 @@ import {
   walletAgentKey,
   type WalletIdentity,
 } from "@/lib/wallet/identity";
-
-type EthereumProvider = {
-  request: (args: { method: string; params?: unknown[] }) => Promise<unknown>;
-};
+import { getInjectedEthereumProvider } from "@/lib/wallet/provider";
 
 const BRAGA_CHAIN_HEX = `0x${bragaNetwork.id.toString(16)}`;
-
-function getEthereumProvider(): EthereumProvider | null {
-  const ethereum = window.ethereum;
-  if (!ethereum || typeof ethereum !== "object") return null;
-  const maybeProvider = ethereum as Partial<EthereumProvider>;
-  return typeof maybeProvider.request === "function" ? (maybeProvider as EthereumProvider) : null;
-}
 
 function publishWalletIdentity(identity: WalletIdentity | null) {
   if (typeof window === "undefined") return;
@@ -149,7 +139,7 @@ function InjectedWalletButton({ compact }: { compact: boolean }) {
 
   async function connectInjectedWallet() {
     setError("");
-    const provider = getEthereumProvider();
+    const provider = getInjectedEthereumProvider();
     if (!provider) {
       setError("no injected wallet");
       return;

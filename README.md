@@ -46,6 +46,15 @@ Set `NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID` with a Reown project ID to enable Wal
 
 If the env var is missing, the button falls back to an injected wallet provider such as MetaMask. This keeps the hackathon demo usable while still showing the intended wallet-gated flow.
 
+The public app also includes a wallet-owned write path. A connected user can create an `agent_profile` entity directly from the browser wallet. That entity is created with the same `PROJECT_ATTRIBUTE`, but its Arkiv `$owner` and `$creator` are the connected wallet rather than the backend service wallet.
+
+Ownership split:
+
+- Backend service wallet: writes operational evidence (`agent`, `payment_review`, `prompt_review`, `policy_decision`) so runtime decisions have trusted service attribution.
+- End-user wallet: writes `agent_profile` so judges can verify user-owned data on Arkiv.
+
+Both paths stamp `project=arkivgate-leocagli-2026` on every entity.
+
 ## Repository Structure
 
 - web/: Next.js app for public site and admin panel

@@ -66,6 +66,34 @@ export function buildAgentEntity(input: BaseEntityInput & {
   };
 }
 
+export function buildAgentProfileEntity(input: BaseEntityInput & {
+  walletAddress: string;
+  displayName?: string;
+}) {
+  const createdAt = input.createdAt ?? Date.now();
+  const walletAddress = input.walletAddress.toLowerCase();
+
+  return {
+    payload: jsonToPayload({
+      walletAddress,
+      agentKey: walletAddress,
+      displayName: input.displayName ?? "Wallet-owned ArkivGate agent",
+      createdVia: "browser-wallet",
+    }),
+    contentType: "application/json",
+    attributes: [
+      PROJECT_ATTRIBUTE,
+      { key: "entityType", value: ENTITY_TYPE.agentProfile },
+      { key: "orgKey", value: input.orgKey },
+      { key: "agentKey", value: walletAddress },
+      { key: "ownerAddress", value: walletAddress },
+      { key: "status", value: "active" },
+      { key: "createdAt", value: createdAt },
+    ],
+    expiresIn: EXPIRATION.agentProfile,
+  };
+}
+
 export function buildPaymentReviewEntity(
   input: BaseEntityInput & {
     agentKey: string;

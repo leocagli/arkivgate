@@ -42,6 +42,7 @@ const ENTITY_TYPES = [
   "prompt_review",
   "payment_review",
   "agent",
+  "agent_profile",
   "policy",
   "all",
 ] as const;

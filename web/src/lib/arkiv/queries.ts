@@ -12,12 +12,16 @@ export type EvidenceQueryFilters = {
   action?: string;
   severity?: string;
   agentKey?: string;
+  owner?: string;
+  creator?: string;
   minRiskScore?: number;
   createdAfter?: number;
   createdBefore?: number;
   limit?: number;
   cursor?: string;
 };
+
+type HexAddress = `0x${string}`;
 
 export type EvidenceEntity = {
   key: string;
@@ -39,6 +43,7 @@ export type EvidenceEntity = {
 
 const ENTITY_RETENTION_DAYS: Partial<Record<EvidenceEntityType, number>> = {
   [ENTITY_TYPE.agent]: Math.round(EXPIRATION.agent / 86_400),
+  [ENTITY_TYPE.agentProfile]: Math.round(EXPIRATION.agentProfile / 86_400),
   [ENTITY_TYPE.paymentReview]: Math.round(EXPIRATION.paymentReview / 86_400),
   [ENTITY_TYPE.promptReview]: Math.round(EXPIRATION.promptReview / 86_400),
   [ENTITY_TYPE.policyDecision]: Math.round(EXPIRATION.policyDecision / 86_400),
@@ -82,6 +87,8 @@ export function evidenceQueryUrlFor(filters: EvidenceQueryFilters): string {
   if (filters.action) parts.push(`action = "${filters.action}"`);
   if (filters.severity) parts.push(`severity = "${filters.severity}"`);
   if (filters.agentKey) parts.push(`agentKey = "${filters.agentKey}"`);
+  if (filters.owner) parts.push(`$owner = "${filters.owner}"`);
+  if (filters.creator) parts.push(`$creator = "${filters.creator}"`);
   if (typeof filters.minRiskScore === "number") parts.push(`riskScore >= ${filters.minRiskScore}`);
   if (typeof filters.createdAfter === "number") parts.push(`createdAt >= ${filters.createdAfter}`);
   if (typeof filters.createdBefore === "number") parts.push(`createdAt <= ${filters.createdBefore}`);
@@ -151,6 +158,10 @@ function entityRetentionDays(entityType: string | number | undefined): number | 
   return ENTITY_RETENTION_DAYS[entityType as EvidenceEntityType] ?? null;
 }
 
+function asHexAddress(value: string | undefined): HexAddress | null {
+  return value && isHexIdentifier(value) ? (value as HexAddress) : null;
+}
+
 export async function searchEvidence(filters: EvidenceQueryFilters) {
   const client = getArkivPublicClient();
   const limit = Math.min(Math.max(filters.limit ?? 12, 1), 50);
@@ -169,6 +180,10 @@ export async function searchEvidence(filters: EvidenceQueryFilters) {
   if (filters.action) query = query.where(eq("action", filters.action));
   if (filters.severity) query = query.where(eq("severity", filters.severity));
   if (filters.agentKey) query = query.where(eq("agentKey", filters.agentKey));
+  const owner = asHexAddress(filters.owner);
+  const creator = asHexAddress(filters.creator);
+  if (owner) query = query.ownedBy(owner);
+  if (creator) query = query.createdBy(creator);
   if (typeof filters.minRiskScore === "number") {
     query = query.where(gte("riskScore", filters.minRiskScore));
   }

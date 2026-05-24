@@ -3,6 +3,7 @@ import Link from "next/link";
 import { EvidenceBrowser } from "./_components/evidence-browser";
 import { PolicyPlayground } from "./_components/policy-playground";
 import { SiteHeader } from "./_components/site-header";
+import { WalletOwnedProfile } from "./_components/wallet-owned-profile";
 
 const trustSignals = ["x402 paid agents", "arkiv evidence rail", "runtime policy firewall"];
 
@@ -151,6 +152,8 @@ export default function HomePage() {
       </section>
 
       <PolicyPlayground />
+
+      <WalletOwnedProfile />
 
       <EvidenceBrowser />
 

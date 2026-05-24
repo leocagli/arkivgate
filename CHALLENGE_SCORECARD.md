@@ -13,19 +13,19 @@ Estimated current score after polish: **3.86 / 5.00**
 
 Realistic ceiling without end-user wallet ownership or encrypted access grants: **4.05 / 5.00**
 
-Best next improvement: transfer or create selected Arkiv entities under the end-user wallet, or add encrypted prompt evidence with wallet-scoped access grants.
+Best next improvement: add encrypted prompt evidence with wallet-scoped access grants.
 
 ## Weighted Score
 
 | Section | Avg | Weight | Weighted |
 | --- | ---: | ---: | ---: |
-| Arkiv Integration | 3.97 | 40% | 1.59 |
+| Arkiv Integration | 4.13 | 40% | 1.65 |
 | Functionality | 3.60 | 30% | 1.08 |
 | Design & UX | 4.10 | 20% | 0.82 |
 | Code Quality & Docs | 4.10 | 10% | 0.41 |
-| **Final** |  |  | **3.90 / 5.00** |
+| **Final** |  |  | **3.97 / 5.00** |
 
-## Arkiv Integration - 3.97 / 5
+## Arkiv Integration - 4.13 / 5
 
 ### Entity schema design: 4 / 5
 
@@ -56,7 +56,7 @@ Gap:
 - Full pagination controls are not yet exposed in the UI.
 - Query examples could be added as a README screenshot/GIF.
 
-### Ownership model: 3 / 5
+### Ownership model: 4 / 5
 
 Strengths:
 
@@ -65,11 +65,13 @@ Strengths:
 - UI now surfaces `owner` and `creator` metadata in selected evidence.
 - Public flow supports Reown AppKit / WalletConnect on Arkiv Braga.
 - Connected wallet address becomes the x402 payer and `agentKey`, so evidence can be filtered by the agent wallet identity.
+- Connected users can create `agent_profile` directly from the browser wallet.
+- The wallet-owned `agent_profile` has `$owner` and `$creator` equal to the user wallet.
 
 Gap:
 
-- Arkiv entity `$owner` is still the backend service wallet, not the end-user wallet.
-- No user-owned update/delete model yet.
+- Runtime evidence remains backend-owned by design for trusted service attribution.
+- UI does not yet expose update/delete/extend controls for the wallet-owned profile.
 
 Fast fix:
 
@@ -268,11 +270,11 @@ ARKIV INTEGRATION (40%)
 
 - Entity schema design: 4 / 5
 - Query usage: 4 / 5
-- Ownership model: 3 / 5
+- Ownership model: 4 / 5
 - Entity relationships: 4.5 / 5
 - Expiration dates: 4.25 / 5
 - Advanced features: 4 / 5
-- Section avg: 3.97 / 5
+- Section avg: 4.13 / 5
 
 FUNCTIONALITY (30%)
 
@@ -298,4 +300,4 @@ CODE QUALITY (10%)
 - Code quality: 3.8 / 5
 - Section avg: 4.10 / 5
 
-WEIGHTED FINAL: 3.90 / 5
+WEIGHTED FINAL: 3.97 / 5
