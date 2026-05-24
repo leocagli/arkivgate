@@ -13,19 +13,19 @@ Estimated current score after polish: **3.86 / 5.00**
 
 Realistic ceiling without end-user wallet ownership or encrypted access grants: **4.05 / 5.00**
 
-Best next improvement: add wallet-connected ownership for agent-created evidence or encrypted prompt evidence with access grants.
+Best next improvement: transfer or create selected Arkiv entities under the end-user wallet, or add encrypted prompt evidence with wallet-scoped access grants.
 
 ## Weighted Score
 
 | Section | Avg | Weight | Weighted |
 | --- | ---: | ---: | ---: |
-| Arkiv Integration | 3.88 | 40% | 1.55 |
+| Arkiv Integration | 3.97 | 40% | 1.59 |
 | Functionality | 3.60 | 30% | 1.08 |
 | Design & UX | 4.10 | 20% | 0.82 |
 | Code Quality & Docs | 4.10 | 10% | 0.41 |
-| **Final** |  |  | **3.86 / 5.00** |
+| **Final** |  |  | **3.90 / 5.00** |
 
-## Arkiv Integration - 3.88 / 5
+## Arkiv Integration - 3.97 / 5
 
 ### Entity schema design: 4 / 5
 
@@ -56,19 +56,20 @@ Gap:
 - Full pagination controls are not yet exposed in the UI.
 - Query examples could be added as a README screenshot/GIF.
 
-### Ownership model: 2.5 / 5
+### Ownership model: 3 / 5
 
 Strengths:
 
 - Arkiv writes are wallet-backed by backend environment configuration.
 - Backend writer creates tamper-resistant attribution at service level.
 - UI now surfaces `owner` and `creator` metadata in selected evidence.
+- Public flow supports Reown AppKit / WalletConnect on Arkiv Braga.
+- Connected wallet address becomes the x402 payer and `agentKey`, so evidence can be filtered by the agent wallet identity.
 
 Gap:
 
-- No end-user wallet connect.
-- No visible `$owner` or `$creator` explanation.
-- No user-owned update/delete model.
+- Arkiv entity `$owner` is still the backend service wallet, not the end-user wallet.
+- No user-owned update/delete model yet.
 
 Fast fix:
 
@@ -252,8 +253,8 @@ Types and tests exist for important TS helpers. Risk areas are fallback complexi
 1. Add an Arkiv schema diagram to README.
    - This improves README and makes Entity Schema obvious.
 
-2. Add a simple "writer identity" panel.
-   - Explain backend Arkiv service wallet and current ownership model honestly.
+2. Add a writer identity panel.
+   - Explain backend Arkiv service wallet versus connected agent wallet.
 
 3. Add clickable pagination in the Evidence Browser.
    - This pushes Query Usage closer to 5.
@@ -267,11 +268,11 @@ ARKIV INTEGRATION (40%)
 
 - Entity schema design: 4 / 5
 - Query usage: 4 / 5
-- Ownership model: 2.5 / 5
+- Ownership model: 3 / 5
 - Entity relationships: 4.5 / 5
 - Expiration dates: 4.25 / 5
 - Advanced features: 4 / 5
-- Section avg: 3.88 / 5
+- Section avg: 3.97 / 5
 
 FUNCTIONALITY (30%)
 
@@ -297,4 +298,4 @@ CODE QUALITY (10%)
 - Code quality: 3.8 / 5
 - Section avg: 4.10 / 5
 
-WEIGHTED FINAL: 3.86 / 5
+WEIGHTED FINAL: 3.90 / 5

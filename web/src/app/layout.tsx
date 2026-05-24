@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import { IBM_Plex_Sans, IBM_Plex_Mono } from "next/font/google";
+
+import { Web3Providers } from "./_components/web3-providers";
 import "./globals.css";
 
 const plexSans = IBM_Plex_Sans({
@@ -50,7 +52,7 @@ export default function RootLayout({
       className={`${plexSans.variable} ${plexMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col bg-paper text-ink">
-        {children}
+        <Web3Providers>{children}</Web3Providers>
       </body>
     </html>
   );

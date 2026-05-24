@@ -3,6 +3,9 @@
 import type { ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
 
+import { shortWalletAddress } from "@/lib/wallet/identity";
+import { useWalletIdentity } from "./wallet-identity-button";
+
 type EvidenceEntity = {
   key: string;
   owner: string | null;
@@ -87,6 +90,7 @@ export function EvidenceBrowser() {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<EvidenceResponse | null>(null);
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
+  const connectedWallet = useWalletIdentity();
 
   const selected = useMemo(
     () => result?.entities?.find((entity) => entity.key === selectedKey) ?? result?.entities?.[0] ?? null,
@@ -206,6 +210,16 @@ export function EvidenceBrowser() {
               <span className="font-mono text-[11px] uppercase tracking-[0.12em] text-graphite">
                 project={result?.project ?? "arkivgate-leocagli-2026"}
               </span>
+              {connectedWallet.connected && connectedWallet.agentKey ? (
+                <button
+                  type="button"
+                  onClick={() => setAgentKey(connectedWallet.agentKey ?? "")}
+                  className="border border-[#1b5a65]/25 bg-[#e2eceb] px-3 py-2 font-mono text-[11px] uppercase tracking-[0.12em] text-[#1b5a65] transition-colors hover:bg-[#d4e3e1]"
+                  style={{ borderRadius: "6px" }}
+                >
+                  filter wallet {shortWalletAddress(connectedWallet.address, 4)}
+                </button>
+              ) : null}
             </div>
           </div>
 

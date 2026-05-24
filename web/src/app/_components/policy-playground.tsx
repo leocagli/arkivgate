@@ -10,6 +10,8 @@ import {
   type PolicyVerdict,
 } from "@/lib/payment-policy";
 import { buildDemoPaymentSignatureWithIntent } from "@/lib/x402-demo";
+import { shortWalletAddress } from "@/lib/wallet/identity";
+import { useWalletIdentity } from "./wallet-identity-button";
 
 type RuleAction = "BLOCK" | "REDACT" | "WARN";
 
@@ -161,6 +163,8 @@ export function PolicyPlayground() {
     error?: string;
     detail?: string;
   } | null>(null);
+  const connectedWallet = useWalletIdentity();
+  const effectivePayer = connectedWallet.agentKey ?? x402AgentKey.trim() ?? DEFAULT_AGENT_KEY;
 
   const result = useMemo(() => {
     const enabledRules = RULES.filter((rule) => enabledRuleIds.includes(rule.id));
@@ -237,12 +241,11 @@ export function PolicyPlayground() {
 
       if (response.status === 402 && requiredPayment) {
         setX402Phase("challenged");
-        const payer = x402AgentKey.trim() || DEFAULT_AGENT_KEY;
         response = await fetch("/api/playground/interceptor-test", {
           method: "POST",
           headers: {
             "content-type": "application/json",
-            "PAYMENT-SIGNATURE": buildDemoPaymentSignatureWithIntent(X402_RESOURCE, payer, paymentIntent),
+            "PAYMENT-SIGNATURE": buildDemoPaymentSignatureWithIntent(X402_RESOURCE, effectivePayer, paymentIntent),
           },
           body: requestBody,
         });
@@ -682,10 +685,16 @@ export function PolicyPlayground() {
           <input
             value={x402AgentKey}
             onChange={(event) => setX402AgentKey(event.target.value)}
+            disabled={connectedWallet.connected}
             placeholder={DEFAULT_AGENT_KEY}
-            className="mt-1.5 w-full border border-[#1b5a65]/25 bg-white p-2 text-sm text-ink outline-none focus:border-[#1b5a65]"
+            className="mt-1.5 w-full border border-[#1b5a65]/25 bg-white p-2 text-sm text-ink outline-none focus:border-[#1b5a65] disabled:bg-[#eef5f4] disabled:text-graphite-dark"
             style={{ borderRadius: "6px" }}
           />
+          {connectedWallet.connected ? (
+            <span className="mt-1 block font-mono text-[10px] uppercase tracking-[0.12em] text-[#1b5a65]">
+              paying as connected wallet {shortWalletAddress(connectedWallet.address, 6)}
+            </span>
+          ) : null}
         </label>
 
         <label className="mb-3 block text-xs text-graphite-dark">

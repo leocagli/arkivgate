@@ -12,6 +12,7 @@ ArkivGate now has a demo x402 rail across the project:
 - Payment policy examples: moving 100% of wallet balance blocks, moving over 50% above recent behavior warns, exceeding a per-transaction cap redacts/caps the amount.
 - Executions are bridged into Arkiv as connected evidence: paying agent entity, payment review, prompt review, policy decision, and transaction links.
 - The public home now includes an Arkiv Evidence Browser that queries by project, entity type, action, severity, agent key, risk score, and time window, then shows relationship keys and retention per entity.
+- Wallet identity is now part of the public flow: Reown AppKit / WalletConnect can connect an EVM wallet on Arkiv Braga, and the playground uses that address as the paying agent key for x402 evidence.
 
 This is intentionally demo settlement. It proves the protocol shape and product loop without moving real funds. A real x402 facilitator can replace the demo verifier later without changing the core policy and Arkiv evidence flow.
 
@@ -38,6 +39,12 @@ The live demo exposes Arkiv as a queryable product layer, not only as explorer l
 - Theme filters for `action`, `severity`, `agentKey`, `riskScore >=`, and `createdAt` windows.
 - Relationship traversal through `agentEntityKey`, `paymentReviewKey`, `promptReviewKey`, and `policyKey`.
 - Differentiated retention for prompt, payment, agent, policy, and decision entities.
+
+### Wallet Ownership Demo
+
+Set `NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID` with a Reown project ID to enable WalletConnect/AppKit in the public header. The app registers Arkiv Braga as a custom EVM network and uses the connected wallet address as the paying agent identity in the x402 playground.
+
+If the env var is missing, the button falls back to an injected wallet provider such as MetaMask. This keeps the hackathon demo usable while still showing the intended wallet-gated flow.
 
 ## Repository Structure
 

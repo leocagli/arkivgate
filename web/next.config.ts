@@ -1,8 +1,12 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
   reactCompiler: true,
+  turbopack: {
+    resolveAlias: {
+      accounts: "./src/lib/wallet/accounts-stub.ts",
+    },
+  },
 };
 
 export default nextConfig;

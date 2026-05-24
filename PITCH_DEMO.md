@@ -42,7 +42,7 @@ The product is simple: the agent may be allowed to pay, but that does not mean i
 
 1. Receives an AI agent request.
 2. Issues an x402 challenge when the route is payment-gated.
-3. Reads the payment intent: wallet balance, transfer amount, recipient risk, transaction cap, recent behavior.
+3. Reads the connected wallet identity and payment intent: wallet balance, transfer amount, recipient risk, transaction cap, recent behavior.
 4. Reads the prompt: credentials, PII, internal paths, unsafe instructions.
 5. Produces a graduated decision: `PASS`, `WARN`, `REDACT`, or `BLOCK`.
 6. Writes linked evidence entities to Arkiv.
@@ -64,6 +64,8 @@ Open `https://arkivgate.vercel.app`.
 "This playground shows two policy lanes. The first lane evaluates the payment intent. The second lane evaluates the prompt. Both lanes return the same operational verdict: PASS, WARN, REDACT, or BLOCK."
 
 "The final decision is the strictest verdict across both lanes."
+
+"If a wallet is connected through WalletConnect, that address becomes the paying agent identity for the x402 evidence."
 
 ### 0:45-1:15 - Payment Intent Demo
 
@@ -157,6 +159,13 @@ Query usage:
 - equality filters: `entityType`, `action`, `severity`, `agentKey`
 - range filters: `riskScore >=`, `createdAt >=`, `createdAt <=`
 - pagination-ready limit/cursor response
+
+Wallet model:
+
+- WalletConnect/Reown connects an EVM wallet on Arkiv Braga.
+- The connected wallet address becomes the x402 payer and `agentKey`.
+- Evidence Browser can filter decisions by that wallet-derived `agentKey`.
+- Current Arkiv writes still use the backend service wallet as trusted creator; end-user Arkiv ownership is the next production step.
 
 Expiration:
 
