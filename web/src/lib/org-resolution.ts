@@ -12,6 +12,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { hasSupabaseRestConfig, restEq, supabaseRestFetch } from "@/lib/supabase-rest";
+import { randomUUID } from "node:crypto";
 
 export type OrgResolution = {
   orgId: string;
@@ -101,6 +102,7 @@ async function createOrgForNewAdminWithRest(input: {
   const memberRows = await supabaseRestFetch<RestMember[]>("/members", {
     method: "POST",
     body: JSON.stringify({
+      id: randomUUID(),
       org_id: orgId,
       email: input.email,
       role: "admin",
@@ -141,6 +143,7 @@ async function joinViaCliWithRest(input: {
   const memberRows = await supabaseRestFetch<RestMember[]>("/members", {
     method: "POST",
     body: JSON.stringify({
+      id: randomUUID(),
       org_id: org.id,
       email: input.email,
       role: "dev",
