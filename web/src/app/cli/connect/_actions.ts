@@ -4,16 +4,63 @@ import { redirect } from "next/navigation";
 import { generateCliToken, hashCliToken } from "@/lib/cli-tokens";
 import { getAuthedUser } from "@/lib/admin-session";
 import { prisma } from "@/lib/prisma";
+import { hasSupabaseRestConfig, restEq, supabaseRestFetch } from "@/lib/supabase-rest";
 
-/**
- * Aprueba un device_code identificado por su user_code visible.
- * - Busca el device_code (debe estar pending y no vencido).
- * - Resuelve el member del usuario logueado vía userId (joinViaCli ya lo
- *   creó al renderizar la página).
- * - Genera token plaintext + hash, persiste cli_token.
- * - Marca el device_code como approved con el secret_token plaintext
- *   guardado para que el CLI lo recoja en su próximo poll.
- */
+type RestMember = {
+  id: string;
+};
+
+type RestDeviceCode = {
+  device_code: string;
+  status: string;
+  expires_at: string;
+};
+
+type RestCliToken = {
+  id: string;
+};
+
+async function approveDeviceCodeWithRest(input: { userCode: string; userId: string }) {
+  const memberRows = await supabaseRestFetch<RestMember[]>(
+    `/members?select=id&user_id=eq.${restEq(input.userId)}&limit=1`,
+  );
+  const member = memberRows[0];
+  if (!member) {
+    throw new Error("no encontre member para este userId");
+  }
+
+  const codeRows = await supabaseRestFetch<RestDeviceCode[]>(
+    `/cli_device_codes?select=device_code,status,expires_at&user_code=eq.${restEq(input.userCode)}&limit=1`,
+  );
+  const code = codeRows[0];
+  if (!code) throw new Error("codigo invalido");
+  if (code.status !== "pending") throw new Error(`codigo en estado ${code.status}`);
+  if (new Date(code.expires_at).getTime() < Date.now()) throw new Error("codigo vencido");
+
+  const token = generateCliToken();
+  const tokenHash = hashCliToken(token);
+
+  const tokenRows = await supabaseRestFetch<RestCliToken[]>("/cli_tokens", {
+    method: "POST",
+    body: JSON.stringify({
+      member_id: member.id,
+      token_hash: tokenHash,
+      label: `CLI - ${new Date().toISOString().slice(0, 10)}`,
+    }),
+  });
+
+  await supabaseRestFetch(`/cli_device_codes?device_code=eq.${restEq(code.device_code)}`, {
+    method: "PATCH",
+    body: JSON.stringify({
+      status: "approved",
+      member_id: member.id,
+      approved_at: new Date().toISOString(),
+      issued_token_id: tokenRows[0].id,
+      secret_token: token,
+    }),
+  });
+}
+
 export async function approveDeviceCode(formData: FormData) {
   const userCodeRaw = formData.get("userCode");
   if (typeof userCodeRaw !== "string" || !userCodeRaw) {
@@ -26,47 +73,48 @@ export async function approveDeviceCode(formData: FormData) {
     redirect(`/admin/login?callbackUrl=${encodeURIComponent(`/cli/connect?code=${userCode}`)}`);
   }
 
-  // Buscamos el member por userId — el JWT puede no tener orgId todavía
-  // (recién se joineó vía joinViaCli en la misma página), pero la DB sí.
-  const member = await prisma.member.findUnique({
-    where: { userId: authed!.userId },
-  });
-  if (!member) {
-    throw new Error(
-      "no encontré member para este userId — ¿el flujo joinViaCli falló silenciosamente?",
-    );
+  try {
+    const member = await prisma.member.findUnique({
+      where: { userId: authed.userId },
+    });
+    if (!member) {
+      throw new Error("no encontre member para este userId");
+    }
+
+    const code = await prisma.cliDeviceCode.findUnique({
+      where: { userCode },
+    });
+    if (!code) throw new Error("codigo invalido");
+    if (code.status !== "pending") throw new Error(`codigo en estado ${code.status}`);
+    if (code.expiresAt.getTime() < Date.now()) throw new Error("codigo vencido");
+
+    const token = generateCliToken();
+    const tokenHash = hashCliToken(token);
+
+    await prisma.$transaction(async (tx) => {
+      const cliToken = await tx.cliToken.create({
+        data: {
+          memberId: member.id,
+          tokenHash,
+          label: `CLI - ${new Date().toISOString().slice(0, 10)}`,
+        },
+      });
+      await tx.cliDeviceCode.update({
+        where: { deviceCode: code.deviceCode },
+        data: {
+          status: "approved",
+          memberId: member.id,
+          approvedAt: new Date(),
+          issuedTokenId: cliToken.id,
+          secretToken: token,
+        },
+      });
+    });
+  } catch (err) {
+    if (!hasSupabaseRestConfig()) throw err;
+    console.warn("[cli-connect-approve] Prisma failed, falling back to Supabase REST:", err);
+    await approveDeviceCodeWithRest({ userCode, userId: authed.userId });
   }
-
-  const code = await prisma.cliDeviceCode.findUnique({
-    where: { userCode },
-  });
-  if (!code) throw new Error("código inválido");
-  if (code.status !== "pending") throw new Error(`código en estado ${code.status}`);
-  if (code.expiresAt.getTime() < Date.now()) throw new Error("código vencido");
-
-  const token = generateCliToken();
-  const tokenHash = hashCliToken(token);
-
-  // Transacción: crear el cli_token y marcar device_code en un solo paso.
-  await prisma.$transaction(async (tx) => {
-    const cliToken = await tx.cliToken.create({
-      data: {
-        memberId: member.id,
-        tokenHash,
-        label: `CLI · ${new Date().toISOString().slice(0, 10)}`,
-      },
-    });
-    await tx.cliDeviceCode.update({
-      where: { deviceCode: code.deviceCode },
-      data: {
-        status: "approved",
-        memberId: member.id,
-        approvedAt: new Date(),
-        issuedTokenId: cliToken.id,
-        secretToken: token,
-      },
-    });
-  });
 
   redirect(`/cli/connect/done?code=${userCode}`);
 }

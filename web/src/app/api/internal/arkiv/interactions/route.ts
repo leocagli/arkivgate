@@ -9,16 +9,24 @@ type PolicyHitRecord = {
 
 type ArkivRefs = {
   policyKey: string;
+  agentEntityKey: string;
+  paymentReviewKey?: string;
   promptReviewKey: string;
   policyDecisionKey: string;
   policyTxHash?: string;
+  agentTxHash: string;
+  paymentReviewTxHash?: string;
   promptReviewTxHash: string;
   policyDecisionTxHash: string;
   explorers: {
     policy?: string;
+    agent: string;
+    paymentReview?: string;
     promptReview: string;
     policyDecision: string;
     policyTx?: string;
+    agentTx: string;
+    paymentReviewTx?: string;
     promptReviewTx: string;
     policyDecisionTx: string;
   };
@@ -41,6 +49,20 @@ type InterceptorBridgeBody = {
   policySlugHint?: string;
   sessionKey?: string;
   agentKey?: string;
+  agentPaymentRail?: "x402-demo" | "none";
+  paymentPolicy?: {
+    verdict: "PASS" | "BLOCK" | "REDACT" | "WARN" | "LOG";
+    severity: "low" | "medium" | "high" | "critical";
+    riskScore: number;
+    reason: string;
+    matchedRules: string[];
+    walletBalanceUsd?: number;
+    transferUsd?: number;
+    adjustedTransferUsd?: number;
+    recentMaxTransferUsd?: number;
+    perTxLimitUsd?: number;
+    recipientRisk?: "low" | "unknown" | "high";
+  };
   latencyMs?: number;
   createdAt?: number;
 };
@@ -265,15 +287,21 @@ export async function POST(request: Request) {
       policySlugHint: body.policySlugHint,
       sessionKey: body.sessionKey,
       agentKey: body.agentKey,
+      agentPaymentRail: body.agentPaymentRail,
+      paymentPolicy: body.paymentPolicy,
       latencyMs: body.latencyMs,
       createdAt: body.createdAt,
     });
 
     arkivRefs = {
       policyKey: persisted.policyKey,
+      agentEntityKey: persisted.agentEntityKey,
+      paymentReviewKey: persisted.paymentReviewKey,
       promptReviewKey: persisted.promptReviewKey,
       policyDecisionKey: persisted.policyDecisionKey,
       policyTxHash: persisted.policyTxHash,
+      agentTxHash: persisted.agentTxHash,
+      paymentReviewTxHash: persisted.paymentReviewTxHash,
       promptReviewTxHash: persisted.promptReviewTxHash,
       policyDecisionTxHash: persisted.policyDecisionTxHash,
       explorers: persisted.explorers,

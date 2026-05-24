@@ -6,6 +6,7 @@ Next.js 16 (App Router) + Tailwind 4 + Prisma 7 + Auth.js v5. Sirve dos cosas:
 - **Back-office del admin** (`/admin/*`) â€” gestiÃ³n de reglas, eventos en vivo y team management.
 - **Device-flow del CLI** (`/cli/connect`) â€” el browser-side del onboarding del dev.
 - **ArkivGate MVP endpoints** (`/api/admin/arkiv/*`) â€” smoke test y consultas de entidades en Arkiv.
+- **x402 playground** (`/api/playground/interceptor-test`) â€” demo del loop 402, firma de agente, decision de politica y evidencia Arkiv.
 
 ## Stack
 
@@ -129,6 +130,22 @@ web/
 | `pnpm db:studio` | Abre Prisma Studio en `http://localhost:5555`. |
 | `pnpm db:generate` | Regenera el cliente Prisma. |
 | `pnpm arkiv:smoke` | Smoke test de ArkivGate. |
+
+## x402 playground
+
+El playground de la landing protege su endpoint con x402 demo. El primer POST
+recibe `402` + `PAYMENT-REQUIRED`; el front firma como agente demo, reintenta
+con `PAYMENT-SIGNATURE` y muestra `PAYMENT-RESPONSE` junto a la entidad Arkiv
+del agente pagador.
+
+El playground tiene dos policy lanes con el mismo vocabulario:
+
+- `x402 payment policy`: evalua balance, monto a transferir, historial, cap por transaccion y riesgo del recipient.
+- `prompt policy`: evalua el contenido del prompt con las reglas `PASS`, `BLOCK`, `REDACT`, `WARN`.
+
+La decision final usa la peor severidad entre ambas. No mueve fondos reales.
+Sirve para validar el producto completo: agente paga, fondos y prompt pasan por
+politica, Arkiv registra.
 
 ## Deploy
 

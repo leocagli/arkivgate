@@ -4,6 +4,45 @@ Proxy Python que se mete entre Claude Code y `api.anthropic.com`. Lee
 polÃ­ticas de Postgres (la DB que comparte con `web/`) y aplica la
 cascada antes de forwardear.
 
+## x402 para agentes
+
+El interceptor puede exigir un pago x402 demo antes de ejecutar
+`POST /cli/{token}/v1/messages`.
+
+```env
+X402_DEMO_ENABLED=true
+```
+
+Con esa variable activa, el primer request sin pago devuelve:
+
+- `HTTP 402`
+- header `PAYMENT-REQUIRED`
+- body `payment_required`
+
+El agente reintenta el mismo recurso con `PAYMENT-SIGNATURE`. Si la firma demo
+es valida, ArkivGate ejecuta la cascada normal y responde con:
+
+- `PAYMENT-RESPONSE`
+- `x-team22-payment-rail: x402-demo`
+- `x-team22-agent-key: <payer>`
+
+El bridge manda ese `agentKey` al web, y el web lo persiste como entidad
+`agent` en Arkiv junto a `PromptReview` y `PolicyDecision`.
+
+Antes de tocar upstream, el interceptor tambien evalua el intento de fondos del
+pago demo si viene incluido en la firma:
+
+- `PASS`: monto normal para el balance y el historial.
+- `WARN`: mas de 50% del balance y por encima del maximo reciente.
+- `REDACT`: excede el cap por transaccion; el monto se capea.
+- `BLOCK`: mueve 100% o mas del balance, o el recipient es high risk.
+
+El bridge envia esa evaluacion como `paymentPolicy`, y el web la registra como
+`payment_review` en Arkiv.
+
+> Importante: esto es settlement demo. No mueve fondos reales todavia; deja el
+> contrato del producto listo para conectar un facilitador x402 real.
+
 ## Arkiv bridge (MVP)
 
 Opcionalmente, cada decisiÃ³n persistida (`BLOCK`, `REDACT`, `WARN`, `LOG`) se puede reenviar al web para escribir evidencia en Arkiv.

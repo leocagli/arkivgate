@@ -2,6 +2,15 @@
 
 import { useMemo, useState } from "react";
 
+import {
+  evaluatePaymentPolicy,
+  normalizePaymentIntent,
+  type PaymentIntent,
+  type PaymentPolicyResult,
+  type PolicyVerdict,
+} from "@/lib/payment-policy";
+import { buildDemoPaymentSignatureWithIntent } from "@/lib/x402-demo";
+
 type RuleAction = "BLOCK" | "REDACT" | "WARN";
 
 type Rule = {
@@ -56,6 +65,36 @@ const PRESETS = [
   "Resume la reunion interna sin compartir datos sensibles",
 ];
 
+const X402_RESOURCE = "/api/playground/interceptor-test";
+const X402_PRICE = "0.001 USDC";
+const X402_NETWORK = "base-sepolia";
+const DEFAULT_AGENT_KEY = "agent_arkivgate_x402_demo";
+
+type X402Phase = "idle" | "requesting" | "challenged" | "signed" | "settled";
+
+type X402Settlement = {
+  success: true;
+  mode: "demo";
+  settled: false;
+  transaction: string;
+  payer: string;
+  resource: string;
+  amount: string;
+  asset: string;
+  network: string;
+};
+
+type PromptPolicyResult = {
+  verdict: PolicyVerdict;
+  reason: string;
+  matchedRules: string[];
+};
+
+type FinalDecision = {
+  verdict: PolicyVerdict;
+  reason: string;
+};
+
 function getSeverity(action: RuleAction | "PASS") {
   if (action === "BLOCK") return 3;
   if (action === "REDACT") return 2;
@@ -69,6 +108,13 @@ export function PolicyPlayground() {
   const [copied, setCopied] = useState(false);
   const [cliToken, setCliToken] = useState("");
   const [proxyUrl, setProxyUrl] = useState("");
+  const [x402AgentKey, setX402AgentKey] = useState(DEFAULT_AGENT_KEY);
+  const [walletBalanceUsd, setWalletBalanceUsd] = useState(100);
+  const [transferUsd, setTransferUsd] = useState(12);
+  const [recentMaxTransferUsd, setRecentMaxTransferUsd] = useState(20);
+  const [perTxLimitUsd, setPerTxLimitUsd] = useState(40);
+  const [recipientRisk, setRecipientRisk] = useState<PaymentIntent["recipientRisk"]>("low");
+  const [x402Phase, setX402Phase] = useState<X402Phase>("idle");
   const [runningLiveTest, setRunningLiveTest] = useState(false);
   const [attemptStatus, setAttemptStatus] = useState<{
     prompt: string;
@@ -84,18 +130,30 @@ export function PolicyPlayground() {
     traceId?: string | null;
     hint?: string | null;
     upstream?: unknown;
+    x402?: X402Settlement;
+    paymentPolicy?: PaymentPolicyResult;
+    promptPolicy?: PromptPolicyResult;
+    finalDecision?: FinalDecision;
     arkiv?: {
       policyKey?: string;
       policyTxHash?: string;
+      agentEntityKey?: string;
+      agentTxHash?: string;
+      paymentReviewKey?: string;
+      paymentReviewTxHash?: string;
       promptReviewKey?: string;
       promptReviewTxHash?: string;
       policyDecisionKey?: string;
       policyDecisionTxHash?: string;
       explorers?: {
         policy?: string;
+        agent: string;
+        paymentReview?: string;
         promptReview: string;
         policyDecision: string;
         policyTx?: string;
+        agentTx: string;
+        paymentReviewTx?: string;
         promptReviewTx: string;
         policyDecisionTx: string;
       };
@@ -130,6 +188,20 @@ export function PolicyPlayground() {
     };
   }, [enabledRuleIds, input]);
 
+  const paymentIntent = useMemo(
+    () =>
+      normalizePaymentIntent({
+        walletBalanceUsd,
+        transferUsd,
+        recentMaxTransferUsd,
+        perTxLimitUsd,
+        recipientRisk,
+      }),
+    [perTxLimitUsd, recentMaxTransferUsd, recipientRisk, transferUsd, walletBalanceUsd],
+  );
+
+  const paymentPreview = useMemo(() => evaluatePaymentPolicy(paymentIntent), [paymentIntent]);
+
   function toggleRule(id: string) {
     setEnabledRuleIds((prev) =>
       prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
@@ -152,13 +224,30 @@ export function PolicyPlayground() {
 
     setAttemptStatus({ prompt: promptToTest, source });
     setRunningLiveTest(true);
+    setX402Phase("requesting");
     setLiveResult(null);
     try {
-      const response = await fetch("/api/playground/interceptor-test", {
+      const requestBody = JSON.stringify({ prompt: promptToTest, cliToken, proxyUrl, paymentIntent });
+      let response = await fetch("/api/playground/interceptor-test", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ prompt: promptToTest, cliToken, proxyUrl }),
+        body: requestBody,
       });
+      const requiredPayment = response.headers.get("PAYMENT-REQUIRED");
+
+      if (response.status === 402 && requiredPayment) {
+        setX402Phase("challenged");
+        const payer = x402AgentKey.trim() || DEFAULT_AGENT_KEY;
+        response = await fetch("/api/playground/interceptor-test", {
+          method: "POST",
+          headers: {
+            "content-type": "application/json",
+            "PAYMENT-SIGNATURE": buildDemoPaymentSignatureWithIntent(X402_RESOURCE, payer, paymentIntent),
+          },
+          body: requestBody,
+        });
+        setX402Phase("signed");
+      }
 
       const data = (await response.json().catch(() => null)) as {
         ok?: boolean;
@@ -170,18 +259,30 @@ export function PolicyPlayground() {
         traceId?: string | null;
         hint?: string | null;
         upstream?: unknown;
+        x402?: X402Settlement;
+        paymentPolicy?: PaymentPolicyResult;
+        promptPolicy?: PromptPolicyResult;
+        finalDecision?: FinalDecision;
         arkiv?: {
           policyKey?: string;
           policyTxHash?: string;
+          agentEntityKey?: string;
+          agentTxHash?: string;
+          paymentReviewKey?: string;
+          paymentReviewTxHash?: string;
           promptReviewKey?: string;
           promptReviewTxHash?: string;
           policyDecisionKey?: string;
           policyDecisionTxHash?: string;
           explorers?: {
             policy?: string;
+            agent: string;
+            paymentReview?: string;
             promptReview: string;
             policyDecision: string;
             policyTx?: string;
+            agentTx: string;
+            paymentReviewTx?: string;
             promptReviewTx: string;
             policyDecisionTx: string;
           };
@@ -210,10 +311,15 @@ export function PolicyPlayground() {
         traceId: data.traceId,
         hint: data.hint,
         upstream: data.upstream,
+        x402: data.x402,
+        paymentPolicy: data.paymentPolicy,
+        promptPolicy: data.promptPolicy,
+        finalDecision: data.finalDecision,
         arkiv: data.arkiv,
         error: data.error,
         detail: data.detail,
       });
+      setX402Phase(data.x402 ? "settled" : "idle");
     } catch (error) {
       setLiveResult({
         ok: false,
@@ -222,6 +328,7 @@ export function PolicyPlayground() {
         error: "request failed",
         detail: error instanceof Error ? error.message : "unknown error",
       });
+      setX402Phase("idle");
     } finally {
       setRunningLiveTest(false);
     }
@@ -265,8 +372,13 @@ export function PolicyPlayground() {
 
               {runningLiveTest ? (
                 <div className="space-y-2 border border-[#1b5a65]/15 bg-white p-4 text-sm text-graphite-dark" style={{ borderRadius: "6px" }}>
-                  <p>Validando el prompt contra el interceptor y persistiendo evidencia en Arkiv...</p>
-                  <p className="font-mono text-xs uppercase tracking-[0.12em] text-[#1b5a65]">esperando respuesta</p>
+                  <p>Negociando pago x402, ejecutando la politica y persistiendo evidencia en Arkiv...</p>
+                  <div className="grid gap-2 text-xs md:grid-cols-4">
+                    <StepPill active={x402Phase !== "idle"} label="request" />
+                    <StepPill active={x402Phase === "challenged" || x402Phase === "signed" || x402Phase === "settled"} label="402" />
+                    <StepPill active={x402Phase === "signed" || x402Phase === "settled"} label="signature" />
+                    <StepPill active={x402Phase === "settled"} label="arkiv" />
+                  </div>
                 </div>
               ) : liveResult ? (
                 <div className="space-y-3">
@@ -280,6 +392,11 @@ export function PolicyPlayground() {
                     <span className="border border-[#1b5a65]/25 bg-white px-2.5 py-1 font-mono text-[11px] uppercase tracking-[0.12em] text-[#1b5a65]" style={{ borderRadius: "6px" }}>
                       latency: {liveResult.elapsedMs}ms
                     </span>
+                    {liveResult.x402 ? (
+                      <span className="border border-[#2e6659]/30 bg-[#e4f4ef] px-2.5 py-1 font-mono text-[11px] uppercase tracking-[0.12em] text-[#2e6659]" style={{ borderRadius: "6px" }}>
+                        x402: paid demo
+                      </span>
+                    ) : null}
                   </div>
 
                   {liveResult.traceId ? (
@@ -308,6 +425,26 @@ export function PolicyPlayground() {
                         >
                           policy decision tx
                         </a>
+                        <a
+                          href={liveResult.arkiv.explorers.agent}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="border border-[#1b5a65]/25 bg-[#edf5f4] px-2.5 py-1 font-mono uppercase tracking-[0.12em] text-[#1b5a65] transition-colors hover:bg-[#e1edeb]"
+                          style={{ borderRadius: "6px" }}
+                        >
+                          paying agent entity
+                        </a>
+                        {liveResult.arkiv.explorers.agentTx ? (
+                          <a
+                            href={liveResult.arkiv.explorers.agentTx}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="border border-[#1b5a65]/25 bg-white px-2.5 py-1 font-mono uppercase tracking-[0.12em] text-[#1b5a65] transition-colors hover:bg-[#edf5f4]"
+                            style={{ borderRadius: "6px" }}
+                          >
+                            agent tx
+                          </a>
+                        ) : null}
                         <a
                           href={liveResult.arkiv.explorers.promptReview}
                           target="_blank"
@@ -355,20 +492,28 @@ export function PolicyPlayground() {
           <p className="font-mono text-xs uppercase tracking-[0.18em] text-[#1b5a65]">interactive</p>
           <h2 className="mt-2 text-2xl font-semibold md:text-3xl">Policy Playground</h2>
         </div>
-        <span
-          className={`inline-flex items-center border px-3 py-1 font-mono text-xs uppercase tracking-[0.14em] ${
-            result.action === "BLOCK"
-              ? "border-[#8a2d2d] bg-[#f8e7e7] text-[#8a2d2d]"
-              : result.action === "REDACT"
-                ? "border-[#8a5f1f] bg-[#fff4e3] text-[#8a5f1f]"
-                : result.action === "WARN"
-                  ? "border-[#385f88] bg-[#e8f2ff] text-[#385f88]"
-                  : "border-[#2e6659] bg-[#e4f4ef] text-[#2e6659]"
-          }`}
-          style={{ borderRadius: "6px" }}
-        >
-          verdict: {result.action}
-        </span>
+        <div className="flex flex-wrap gap-2">
+          <span
+            className="inline-flex items-center border border-[#2e6659]/30 bg-[#e4f4ef] px-3 py-1 font-mono text-xs uppercase tracking-[0.14em] text-[#2e6659]"
+            style={{ borderRadius: "6px" }}
+          >
+            x402 agent rail
+          </span>
+          <span
+            className={`inline-flex items-center border px-3 py-1 font-mono text-xs uppercase tracking-[0.14em] ${
+              result.action === "BLOCK"
+                ? "border-[#8a2d2d] bg-[#f8e7e7] text-[#8a2d2d]"
+                : result.action === "REDACT"
+                  ? "border-[#8a5f1f] bg-[#fff4e3] text-[#8a5f1f]"
+                  : result.action === "WARN"
+                    ? "border-[#385f88] bg-[#e8f2ff] text-[#385f88]"
+                    : "border-[#2e6659] bg-[#e4f4ef] text-[#2e6659]"
+            }`}
+            style={{ borderRadius: "6px" }}
+          >
+            verdict: {result.action}
+          </span>
+        </div>
       </div>
 
       <div className="grid gap-6 md:grid-cols-[1.1fr_0.9fr]">
@@ -469,17 +614,79 @@ export function PolicyPlayground() {
 
       <article className="mt-6 border border-[#1b5a65]/25 bg-[#f7fbfa] p-5" style={{ borderRadius: "6px" }}>
         <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-          <p className="font-mono text-xs uppercase tracking-[0.14em] text-graphite">live interceptor test</p>
+          <div>
+            <p className="font-mono text-xs uppercase tracking-[0.14em] text-graphite">paid agent execution</p>
+            <p className="mt-1 text-sm text-graphite-dark">
+              El agente recibe 402, firma el pago demo y queda registrado como entidad Arkiv.
+            </p>
+          </div>
           <button
             type="button"
-              onClick={() => void runLiveTest(undefined, "manual")}
+            onClick={() => void runLiveTest(undefined, "manual")}
             disabled={runningLiveTest || input.trim().length === 0}
             className="border border-[#1b5a65]/25 bg-[#1b5a65] px-3 py-1.5 font-mono text-[11px] uppercase tracking-[0.12em] text-white transition-colors hover:bg-[#144a53] disabled:cursor-not-allowed disabled:opacity-60"
             style={{ borderRadius: "6px" }}
           >
-            {runningLiveTest ? "ejecutando..." : "test real"}
+            {runningLiveTest ? "pagando..." : "run paid agent"}
           </button>
         </div>
+
+        <div className="mb-4 grid gap-3 md:grid-cols-4">
+          <RailMetric label="price" value={X402_PRICE} />
+          <RailMetric label="network" value={X402_NETWORK} />
+          <RailMetric label="resource" value={X402_RESOURCE} />
+          <RailMetric label="settlement" value="demo" />
+        </div>
+
+        <div className="mb-4 grid gap-3 md:grid-cols-2">
+          <PolicyLane
+            title="x402 payment policy"
+            verdict={paymentPreview.verdict}
+            reason={paymentPreview.reason}
+            detail={
+              paymentPreview.adjustedTransferUsd
+                ? `cap: $${paymentPreview.adjustedTransferUsd}`
+                : `move: $${paymentIntent.transferUsd} / balance: $${paymentIntent.walletBalanceUsd}`
+            }
+          />
+          <PolicyLane
+            title="prompt policy"
+            verdict={result.action}
+            reason={result.matches.length ? result.matches.map((rule) => rule.label).join(", ") : "prompt is within policy"}
+            detail={`${result.matches.length} matched rules`}
+          />
+        </div>
+
+        <div className="mb-4 grid gap-3 md:grid-cols-5">
+          <NumericField label="Wallet balance" value={walletBalanceUsd} onChange={setWalletBalanceUsd} />
+          <NumericField label="Transfer amount" value={transferUsd} onChange={setTransferUsd} />
+          <NumericField label="Recent max" value={recentMaxTransferUsd} onChange={setRecentMaxTransferUsd} />
+          <NumericField label="Tx cap" value={perTxLimitUsd} onChange={setPerTxLimitUsd} />
+          <label className="block text-xs text-graphite-dark">
+            Recipient risk
+            <select
+              value={recipientRisk}
+              onChange={(event) => setRecipientRisk(event.target.value as PaymentIntent["recipientRisk"])}
+              className="mt-1.5 h-[38px] w-full border border-[#1b5a65]/25 bg-white px-2 text-sm text-ink outline-none focus:border-[#1b5a65]"
+              style={{ borderRadius: "6px" }}
+            >
+              <option value="low">low</option>
+              <option value="unknown">unknown</option>
+              <option value="high">high</option>
+            </select>
+          </label>
+        </div>
+
+        <label className="mb-3 block text-xs text-graphite-dark">
+          Paying agent key
+          <input
+            value={x402AgentKey}
+            onChange={(event) => setX402AgentKey(event.target.value)}
+            placeholder={DEFAULT_AGENT_KEY}
+            className="mt-1.5 w-full border border-[#1b5a65]/25 bg-white p-2 text-sm text-ink outline-none focus:border-[#1b5a65]"
+            style={{ borderRadius: "6px" }}
+          />
+        </label>
 
         <label className="mb-3 block text-xs text-graphite-dark">
           Proxy URL (interceptor)
@@ -520,6 +727,42 @@ export function PolicyPlayground() {
               <span className="border border-[#1b5a65]/25 bg-white px-2.5 py-1 font-mono text-[11px] uppercase tracking-[0.12em] text-[#1b5a65]" style={{ borderRadius: "6px" }}>
                 mode: {liveResult.mode ?? "unknown"}
               </span>
+              {liveResult.x402 ? (
+                <span className="border border-[#2e6659]/30 bg-[#e4f4ef] px-2.5 py-1 font-mono text-[11px] uppercase tracking-[0.12em] text-[#2e6659]" style={{ borderRadius: "6px" }}>
+                  x402: {liveResult.x402.amount} {liveResult.x402.asset}
+                </span>
+              ) : null}
+            </div>
+
+            <div className="grid gap-3 md:grid-cols-3">
+              {liveResult.paymentPolicy ? (
+                <PolicyLane
+                  title="x402 payment policy"
+                  verdict={liveResult.paymentPolicy.verdict}
+                  reason={liveResult.paymentPolicy.reason}
+                  detail={
+                    liveResult.paymentPolicy.adjustedTransferUsd
+                      ? `capped to $${liveResult.paymentPolicy.adjustedTransferUsd}`
+                      : `risk ${liveResult.paymentPolicy.riskScore}`
+                  }
+                />
+              ) : null}
+              {liveResult.promptPolicy ? (
+                <PolicyLane
+                  title="prompt policy"
+                  verdict={liveResult.promptPolicy.verdict}
+                  reason={liveResult.promptPolicy.reason}
+                  detail={`${liveResult.promptPolicy.matchedRules.length} matched rules`}
+                />
+              ) : null}
+              {liveResult.finalDecision ? (
+                <PolicyLane
+                  title="final decision"
+                  verdict={liveResult.finalDecision.verdict}
+                  reason={liveResult.finalDecision.reason}
+                  detail="worst severity wins"
+                />
+              ) : null}
             </div>
 
             {liveResult.traceId ? (
@@ -528,12 +771,21 @@ export function PolicyPlayground() {
             {liveResult.target ? (
               <p className="text-xs text-graphite-dark">target: {liveResult.target}</p>
             ) : null}
+            {liveResult.x402 ? (
+              <p className="text-xs text-graphite-dark">
+                payer agent: {liveResult.x402.payer} / payment: {liveResult.x402.transaction}
+              </p>
+            ) : null}
             {liveResult.hint ? <p className="text-sm text-[#8a5f1f]">{liveResult.hint}</p> : null}
             {liveResult.error ? <p className="text-sm text-[#8a2d2d]">{liveResult.error}: {liveResult.detail}</p> : null}
 
             {liveResult.arkiv?.promptReviewKey ? (
               <div className="space-y-2 border border-[#1b5a65]/15 bg-white p-3 text-xs text-graphite-dark" style={{ borderRadius: "6px" }}>
                 <p className="font-mono uppercase tracking-[0.12em] text-graphite">arkiv persisted</p>
+                <p>agent: {liveResult.arkiv.agentEntityKey}</p>
+                <p>agent tx: {liveResult.arkiv.agentTxHash}</p>
+                {liveResult.arkiv.paymentReviewKey ? <p>payment_review: {liveResult.arkiv.paymentReviewKey}</p> : null}
+                {liveResult.arkiv.paymentReviewTxHash ? <p>payment_review tx: {liveResult.arkiv.paymentReviewTxHash}</p> : null}
                 <p>policy: {liveResult.arkiv.policyKey}</p>
                 {liveResult.arkiv.policyTxHash ? <p>policy tx: {liveResult.arkiv.policyTxHash}</p> : null}
                 <p>prompt_review: {liveResult.arkiv.promptReviewKey}</p>
@@ -551,4 +803,88 @@ export function PolicyPlayground() {
       </article>
     </section>
   );
+}
+
+function StepPill({ active, label }: { active: boolean; label: string }) {
+  return (
+    <span
+      className={`border px-2.5 py-1 text-center font-mono text-[10px] uppercase tracking-[0.12em] ${
+        active
+          ? "border-[#2e6659]/30 bg-[#e4f4ef] text-[#2e6659]"
+          : "border-[#7a8f93]/25 bg-[#f7fbfa] text-graphite"
+      }`}
+      style={{ borderRadius: "6px" }}
+    >
+      {label}
+    </span>
+  );
+}
+
+function NumericField({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: number;
+  onChange: (value: number) => void;
+}) {
+  return (
+    <label className="block text-xs text-graphite-dark">
+      {label}
+      <input
+        type="number"
+        min="0"
+        step="1"
+        value={value}
+        onChange={(event) => onChange(Number(event.target.value))}
+        className="mt-1.5 h-[38px] w-full border border-[#1b5a65]/25 bg-white px-2 text-sm text-ink outline-none focus:border-[#1b5a65]"
+        style={{ borderRadius: "6px" }}
+      />
+    </label>
+  );
+}
+
+function PolicyLane({
+  title,
+  verdict,
+  reason,
+  detail,
+}: {
+  title: string;
+  verdict: PolicyVerdict;
+  reason: string;
+  detail: string;
+}) {
+  return (
+    <div className="min-w-0 border border-[#1b5a65]/15 bg-white p-3" style={{ borderRadius: "6px" }}>
+      <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+        <p className="font-mono text-[10px] uppercase tracking-[0.14em] text-graphite">{title}</p>
+        <span
+          className={`border px-2 py-0.5 font-mono text-[10px] uppercase tracking-[0.12em] ${verdictTone(verdict)}`}
+          style={{ borderRadius: "6px" }}
+        >
+          {verdict}
+        </span>
+      </div>
+      <p className="text-sm leading-relaxed text-[#123c45]">{reason}</p>
+      <p className="mt-2 break-all font-mono text-[10px] uppercase tracking-[0.12em] text-graphite">{detail}</p>
+    </div>
+  );
+}
+
+function RailMetric({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="min-w-0 border border-[#1b5a65]/15 bg-white p-3" style={{ borderRadius: "6px" }}>
+      <p className="font-mono text-[10px] uppercase tracking-[0.14em] text-graphite">{label}</p>
+      <p className="mt-1 break-all text-sm font-medium text-[#123c45]">{value}</p>
+    </div>
+  );
+}
+
+function verdictTone(verdict: PolicyVerdict) {
+  if (verdict === "BLOCK") return "border-[#8a2d2d] bg-[#f8e7e7] text-[#8a2d2d]";
+  if (verdict === "REDACT") return "border-[#8a5f1f] bg-[#fff4e3] text-[#8a5f1f]";
+  if (verdict === "WARN") return "border-[#385f88] bg-[#e8f2ff] text-[#385f88]";
+  return "border-[#2e6659] bg-[#e4f4ef] text-[#2e6659]";
 }

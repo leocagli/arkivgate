@@ -14,10 +14,10 @@ import {
   generateDeviceCode,
   generateUserCode,
 } from "@/lib/cli-tokens";
-import { prisma } from "@/lib/prisma";
+import { hasSupabaseRestConfig, supabaseRestFetch } from "@/lib/supabase-rest";
 
-function appUrl(): string {
-  return process.env.AUTH_URL ?? process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+function appUrl(request: Request): string {
+  return process.env.AUTH_URL ?? process.env.NEXT_PUBLIC_APP_URL ?? new URL(request.url).origin;
 }
 
 function proxyUrl(): string {
@@ -25,6 +25,43 @@ function proxyUrl(): string {
     process.env.ArkivGate_PROXY_URL ??
     "https://arkivgate-production.up.railway.app"
   );
+}
+
+async function persistDeviceCode(input: {
+  deviceCode: string;
+  userCode: string;
+  expiresAt: Date;
+  orgInviteId: string | null;
+}) {
+  try {
+    const { prisma } = await import("@/lib/prisma");
+    await prisma.cliDeviceCode.create({
+      data: {
+        deviceCode: input.deviceCode,
+        userCode: input.userCode,
+        expiresAt: input.expiresAt,
+        status: "pending",
+        orgInviteId: input.orgInviteId,
+      },
+    });
+    return;
+  } catch (err) {
+    if (!hasSupabaseRestConfig()) {
+      throw err;
+    }
+    console.warn("[cli-device-start] Prisma failed, falling back to Supabase REST:", err);
+  }
+
+  await supabaseRestFetch("/cli_device_codes", {
+    method: "POST",
+    body: JSON.stringify({
+      device_code: input.deviceCode,
+      user_code: input.userCode,
+      expires_at: input.expiresAt.toISOString(),
+      status: "pending",
+      org_invite_id: input.orgInviteId,
+    }),
+  });
 }
 
 export async function POST(request: Request) {
@@ -42,11 +79,9 @@ export async function POST(request: Request) {
   const userCode = generateUserCode();
   const expiresAt = new Date(Date.now() + DEVICE_CODE_TTL_MS);
 
-  await prisma.cliDeviceCode.create({
-    data: { deviceCode, userCode, expiresAt, status: "pending", orgInviteId },
-  });
+  await persistDeviceCode({ deviceCode, userCode, expiresAt, orgInviteId });
 
-  const verificationUri = `${appUrl()}/cli/connect?code=${encodeURIComponent(userCode)}`;
+  const verificationUri = `${appUrl(request)}/cli/connect?code=${encodeURIComponent(userCode)}`;
 
   return Response.json({
     device_code: deviceCode,

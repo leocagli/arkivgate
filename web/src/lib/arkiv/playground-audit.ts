@@ -1,6 +1,8 @@
 import { ACTION, ENTITY_TYPE, type ActionType, type SeverityType } from "./constants";
 import { getArkivWalletClient } from "./client";
 import {
+  buildAgentEntity,
+  buildPaymentReviewEntity,
   buildPolicyDecisionEntity,
   buildPolicyEntity,
   buildPromptReviewEntity,
@@ -30,6 +32,20 @@ export type PersistArkivAuditInput = {
   policySlugHint?: string;
   sessionKey?: string;
   agentKey?: string;
+  agentPaymentRail?: "x402-demo" | "none";
+  paymentPolicy?: {
+    verdict: ActionType | "PASS";
+    severity: SeverityType;
+    riskScore: number;
+    reason: string;
+    matchedRules: string[];
+    walletBalanceUsd?: number;
+    transferUsd?: number;
+    adjustedTransferUsd?: number;
+    recentMaxTransferUsd?: number;
+    perTxLimitUsd?: number;
+    recipientRisk?: "low" | "unknown" | "high";
+  };
   latencyMs?: number;
   createdAt?: number;
 };
@@ -38,14 +54,22 @@ export type PersistArkivAuditResult = {
   policyKey: string;
   promptReviewKey: string;
   policyDecisionKey: string;
+  agentEntityKey: string;
+  paymentReviewKey?: string;
   policyTxHash?: string;
+  agentTxHash: string;
+  paymentReviewTxHash?: string;
   promptReviewTxHash: string;
   policyDecisionTxHash: string;
   explorers: {
     policy?: string;
+    agent: string;
+    paymentReview?: string;
     promptReview: string;
     policyDecision: string;
     policyTx?: string;
+    agentTx: string;
+    paymentReviewTx?: string;
     promptReviewTx: string;
     policyDecisionTx: string;
   };
@@ -211,12 +235,45 @@ export async function persistArkivPromptAudit(input: PersistArkivAuditInput): Pr
     action: finalAction,
     severity: finalSeverity,
   });
+  const agentKey = input.agentKey ?? "agent_arkivgate_playground";
+  const agent = await createEntityWithRetry(
+    buildAgentEntity({
+      orgKey: input.orgKey,
+      agentKey,
+      paymentRail: input.agentPaymentRail ?? "none",
+      createdAt: input.createdAt,
+    }),
+  );
+  const paymentReview = input.paymentPolicy
+    ? await createEntityWithRetry(
+        buildPaymentReviewEntity({
+          orgKey: input.orgKey,
+          agentKey,
+          agentEntityKey: agent.entityKey,
+          paymentRail: input.agentPaymentRail ?? "none",
+          verdict: input.paymentPolicy.verdict,
+          severity: input.paymentPolicy.severity,
+          riskScore: input.paymentPolicy.riskScore,
+          reason: input.paymentPolicy.reason,
+          matchedRules: input.paymentPolicy.matchedRules,
+          walletBalanceUsd: input.paymentPolicy.walletBalanceUsd,
+          transferUsd: input.paymentPolicy.transferUsd,
+          adjustedTransferUsd: input.paymentPolicy.adjustedTransferUsd,
+          recentMaxTransferUsd: input.paymentPolicy.recentMaxTransferUsd,
+          perTxLimitUsd: input.paymentPolicy.perTxLimitUsd,
+          recipientRisk: input.paymentPolicy.recipientRisk,
+          createdAt: input.createdAt,
+        }),
+      )
+    : null;
 
   const promptReview = await createEntityWithRetry(
     buildPromptReviewEntity({
       orgKey: input.orgKey,
       sessionKey: input.sessionKey ?? `session_${input.traceId}`,
-      agentKey: input.agentKey ?? "agent_arkivgate_playground",
+      agentKey,
+      agentEntityKey: agent.entityKey,
+      paymentReviewKey: paymentReview?.entityKey,
       model: input.model,
       promptHash: finalPromptHash,
       promptRedacted: finalPromptRedacted,
@@ -233,6 +290,7 @@ export async function persistArkivPromptAudit(input: PersistArkivAuditInput): Pr
     buildPolicyDecisionEntity({
       orgKey: input.orgKey,
       promptReviewKey: promptReview.entityKey,
+      paymentReviewKey: paymentReview?.entityKey,
       policyKey: policy.key,
       finalAction,
       severity: finalSeverity,
@@ -244,16 +302,24 @@ export async function persistArkivPromptAudit(input: PersistArkivAuditInput): Pr
 
   return {
     policyKey: policy.key,
+    agentEntityKey: agent.entityKey,
+    paymentReviewKey: paymentReview?.entityKey,
     promptReviewKey: promptReview.entityKey,
     policyDecisionKey: policyDecision.entityKey,
     policyTxHash: policy.txHash,
+    agentTxHash: agent.txHash,
+    paymentReviewTxHash: paymentReview?.txHash,
     promptReviewTxHash: promptReview.txHash,
     policyDecisionTxHash: policyDecision.txHash,
     explorers: {
       policy: policy.explorer,
+      agent: entityExplorerUrl(agent.entityKey),
+      paymentReview: paymentReview ? entityExplorerUrl(paymentReview.entityKey) : undefined,
       promptReview: entityExplorerUrl(promptReview.entityKey),
       policyDecision: entityExplorerUrl(policyDecision.entityKey),
       policyTx: policy.txExplorer,
+      agentTx: transactionExplorerUrl(agent.txHash),
+      paymentReviewTx: paymentReview ? transactionExplorerUrl(paymentReview.txHash) : undefined,
       promptReviewTx: transactionExplorerUrl(promptReview.txHash),
       policyDecisionTx: transactionExplorerUrl(policyDecision.txHash),
     },

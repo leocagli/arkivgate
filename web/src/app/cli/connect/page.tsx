@@ -8,9 +8,41 @@ import { isAuthConfigured } from "@/auth";
 import { getAuthedUser } from "@/lib/admin-session";
 import { joinViaCli } from "@/lib/org-resolution";
 import { prisma } from "@/lib/prisma";
+import { hasSupabaseRestConfig, restEq, supabaseRestFetch } from "@/lib/supabase-rest";
 import { approveDeviceCode } from "./_actions";
 
 export const dynamic = "force-dynamic";
+
+type ConnectCode = {
+  userCode: string;
+  status: string;
+  orgInviteId: string | null;
+};
+
+async function getConnectCode(userCode: string): Promise<ConnectCode | null> {
+  try {
+    return await prisma.cliDeviceCode.findUnique({
+      where: { userCode: userCode.toUpperCase() },
+    });
+  } catch (err) {
+    if (!hasSupabaseRestConfig()) throw err;
+    console.warn("[cli-connect] Prisma failed, falling back to Supabase REST:", err);
+  }
+
+  const rows = await supabaseRestFetch<
+    { user_code: string; status: string; org_invite_id: string | null }[]
+  >(
+    `/cli_device_codes?select=user_code,status,org_invite_id&user_code=eq.${restEq(userCode.toUpperCase())}&limit=1`,
+  );
+  const row = rows[0];
+  return row
+    ? {
+        userCode: row.user_code,
+        status: row.status,
+        orgInviteId: row.org_invite_id,
+      }
+    : null;
+}
 
 export default async function CliConnectPage({
   searchParams,
@@ -41,9 +73,7 @@ export default async function CliConnectPage({
     redirect(`/admin/login?callbackUrl=${encodeURIComponent(`/cli/connect?code=${userCode}`)}`);
   }
 
-  const code = await prisma.cliDeviceCode.findUnique({
-    where: { userCode: userCode.toUpperCase() },
-  });
+  const code = await getConnectCode(userCode);
 
   if (!code) {
     return (

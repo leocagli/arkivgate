@@ -42,3 +42,5 @@ next-env.d.ts
 .mcp.json
 # Firecrawl skill local cache
 .firecrawl/
+
+.vercel

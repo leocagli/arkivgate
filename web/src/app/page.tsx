@@ -3,61 +3,61 @@ import Link from "next/link";
 import { PolicyPlayground } from "./_components/policy-playground";
 import { SiteHeader } from "./_components/site-header";
 
-const trustSignals = ["runtime policy firewall", "arkiv evidence rail", "operator-grade admin"];
+const trustSignals = ["x402 paid agents", "arkiv evidence rail", "runtime policy firewall"];
 
 const pillars = [
   {
-    title: "Guardrails activos antes del modelo",
-    body: "Cada prompt pasa por una cascada de reglas verificables. Decide BLOCK, REDACT, WARN o LOG sin frenar velocidad de entrega.",
+    title: "Agentes que pagan antes de ejecutar",
+    body: "Cada llamada protegida puede arrancar con un challenge x402. Si el agente firma el pago, ArkivGate evalua el prompt y deja el rastro.",
   },
   {
-    title: "Trazabilidad que si pasa auditoria",
-    body: "Los eventos sensibles quedan con contexto, decision, actor y timestamp para revisiones internas, regulatorias o postmortem.",
+    title: "Politica antes del modelo",
+    body: "La cascada decide BLOCK, REDACT, WARN o LOG antes de tocar el upstream. Los casos bloqueados funcionan incluso sin una API key de Claude.",
   },
   {
-    title: "Un cockpit para seguridad y producto",
-    body: "Gestiona reglas, revisa alertas y mide impacto operativo desde una consola unica para equipos cross-funcionales.",
+    title: "Evidencia que vive en Arkiv",
+    body: "El agente pagador, la revision del prompt y la decision de politica quedan conectados como entidades verificables en Arkiv Network.",
   },
 ];
 
 const proofCards = [
   {
-    label: "leak exposure",
-    value: "-64%",
-    body: "Menos riesgo de fuga de datos sensibles en interacciones de alto volumen.",
+    label: "payment gate",
+    value: "402",
+    body: "El runtime puede exigir pago x402 antes de ejecutar una llamada de agente.",
   },
   {
-    label: "policy response",
-    value: "x3",
-    body: "Ajustes de reglas en minutos, no en ciclos largos de despliegue.",
+    label: "policy verdict",
+    value: "4",
+    body: "BLOCK, REDACT, WARN o LOG segun las reglas activas del equipo.",
   },
   {
-    label: "audit readiness",
-    value: "24/7",
-    body: "Evidencia verificable siempre activa para compliance y governance.",
+    label: "proof layer",
+    value: "Arkiv",
+    body: "Cada ejecucion pagada puede dejar entidad, tx hash y link de explorer.",
   },
 ];
 
 const flow = [
   {
-    title: "Client request",
-    body: "Developer usa su cliente AI habitual sin cambiar su workflow.",
+    title: "Agent request",
+    body: "Un agente o cliente AI intenta usar el runtime protegido.",
   },
   {
-    title: "Runtime interception",
-    body: "ArkivGate intercepta prompt y contexto antes del modelo.",
+    title: "x402 challenge",
+    body: "ArkivGate responde 402 si falta la firma de pago para ese recurso.",
+  },
+  {
+    title: "Signed payment",
+    body: "El agente firma el pago demo y reintenta contra el mismo endpoint.",
   },
   {
     title: "Policy cascade",
-    body: "Reglas deterministicas ejecutan BLOCK, REDACT, WARN o LOG.",
+    body: "La cascada aplica reglas y decide si el modelo puede recibir el prompt.",
   },
   {
-    title: "Operational storage",
-    body: "Interacciones y decisiones quedan en Postgres para operacion diaria.",
-  },
-  {
-    title: "Proof layer",
-    body: "Bridge opcional registra evidencia verificable en Arkiv Braga.",
+    title: "Arkiv proof",
+    body: "El agente, la revision y la decision quedan persistidos como evidencia.",
   },
 ];
 
@@ -71,14 +71,14 @@ export default function HomePage() {
 
         <div className="relative mx-auto grid w-full max-w-6xl gap-8 px-6 pb-16 pt-14 md:grid-cols-[1.15fr_0.85fr] md:pb-20 md:pt-20">
           <div className="space-y-6 rise md:space-y-7">
-            <p className="font-mono text-xs uppercase tracking-[0.22em] text-graphite">arkivgate // security runtime for ai</p>
+            <p className="font-mono text-xs uppercase tracking-[0.22em] text-graphite">arkivgate // paid ai governance runtime</p>
 
             <h1 className="max-w-3xl text-4xl font-semibold leading-[1.02] md:text-6xl">
-              Tu stack AI puede escalar rapido y aun asi pasar compliance.
+              Agentes que pagan, politicas que deciden, evidencia que queda.
             </h1>
 
             <p className="max-w-2xl text-base leading-relaxed text-graphite-dark md:text-lg">
-              ArkivGate crea una capa de control operativa entre la intencion del usuario y la respuesta del modelo. Menos riesgo, mas evidencia, mejor gobernanza.
+              ArkivGate pone un gate x402 delante de las llamadas AI, aplica reglas antes del modelo y registra cada decision critica en Arkiv Network.
             </p>
 
             <div className="flex flex-wrap gap-2">
@@ -126,7 +126,7 @@ export default function HomePage() {
             <div className="mt-4 border border-[#3f6a70] bg-[#13343a] p-4" style={{ borderRadius: "6px" }}>
               <p className="font-mono text-[11px] uppercase tracking-[0.14em] text-[#9bc4bc]">current mode</p>
               <p className="mt-2 text-sm leading-relaxed text-[#def0ec]">
-                Enforcement hard mode + Arkiv proof enabled para eventos de riesgo.
+                x402 demo rail + policy enforcement + Arkiv proof para agentes de prueba.
               </p>
             </div>
           </div>
@@ -154,7 +154,7 @@ export default function HomePage() {
       <section id="producto" className="mx-auto w-full max-w-6xl px-6 py-16 md:py-20">
         <h2 className="mb-3 text-2xl font-semibold md:text-3xl">Producto</h2>
         <p className="mb-8 max-w-3xl text-sm leading-relaxed text-graphite-dark md:text-base">
-          Una capa de seguridad aplicada en runtime para operaciones AI de alto riesgo. Disenada para equipos que necesitan control sin frenar entrega.
+          Una capa de control para agentes AI: cobra el acceso con x402, evalua el prompt en runtime y deja evidencia verificable para auditoria.
         </p>
         <div className="grid gap-5 md:grid-cols-3">
           {pillars.map((pillar) => (
@@ -200,16 +200,16 @@ export default function HomePage() {
           className="grid gap-4 md:grid-cols-2"
         >
           <ArchitectureCell title="01 / cliente" tone="light">
-            Claude Code u otro cliente AI conectado al proxy de control.
+            Agente, Claude Code u otro cliente AI conectado al proxy de control.
           </ArchitectureCell>
           <ArchitectureCell title="02 / interceptor" tone="dark">
-            Evalúa políticas y registra cada interacción en la base de datos.
+            Exige x402 cuando esta activo, evalua politicas y registra cada interaccion.
           </ArchitectureCell>
           <ArchitectureCell title="03 / web admin" tone="dark">
             Configura políticas, revisa eventos y gestiona el bridge.
           </ArchitectureCell>
           <ArchitectureCell title="04 / arkiv" tone="light">
-            Almacena evidencia auditable para verificabilidad externa.
+            Almacena agente pagador, revision de prompt y decision como evidencia.
           </ArchitectureCell>
         </div>
       </section>
@@ -218,14 +218,14 @@ export default function HomePage() {
         <div className="mx-auto w-full max-w-6xl px-6 py-16 md:py-20">
           <h2 className="mb-3 text-2xl font-semibold md:text-3xl">Roadmap inmediato</h2>
           <p className="mb-6 max-w-2xl text-sm leading-relaxed text-[#bcd9d3]">
-            Estamos cerrando la transicion de MVP a operacion productiva con governance completa.
+            El MVP ya muestra el loop pagado. Lo siguiente es pasar de settlement demo a pagos reales y evidencia operacional completa.
           </p>
 
           <ul className="grid gap-3 text-sm text-[#d8ebe7] md:grid-cols-2">
-            <li>Dominio final en Vercel y hardening de cabeceras.</li>
-            <li>Deploy de interceptor en Railway o Render con observabilidad.</li>
-            <li>Fondeo de wallet Braga para writes persistentes en Arkiv.</li>
-            <li>Validacion E2E con evidencia trazable visible en panel admin.</li>
+            <li>Configurar settlement x402 real para agentes externos.</li>
+            <li>Deploy del interceptor con `X402_DEMO_ENABLED=true` para demos controladas.</li>
+            <li>Mostrar entidad de agente pagador en el panel admin.</li>
+            <li>Validar E2E con pago, decision y prueba Arkiv en una sola vista.</li>
           </ul>
 
           <div className="mt-8 flex flex-wrap gap-3">

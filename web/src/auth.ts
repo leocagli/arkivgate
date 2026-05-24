@@ -2,11 +2,10 @@
 // Server Components y cualquier cosa que NO sea el proxy/middleware.
 // El proxy importa src/auth.config.ts directo (edge-safe, sin adapter).
 
-import { PrismaAdapter } from "@auth/prisma-adapter";
 import NextAuth, { type DefaultSession } from "next-auth";
 import authConfig from "@/auth.config";
 import { resolveOrgForUser } from "@/lib/org-resolution";
-import { prisma } from "@/lib/prisma";
+import { SupabaseRestAuthAdapter } from "@/lib/supabase-auth-adapter";
 
 // Extiendo session.user con los campos que resolvemos al primer login.
 declare module "next-auth" {
@@ -33,7 +32,7 @@ declare module "@auth/core/jwt" {
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   ...authConfig,
-  adapter: PrismaAdapter(prisma),
+  adapter: SupabaseRestAuthAdapter(),
   callbacks: {
     ...authConfig.callbacks,
     // El primer login dispara `user` poblado (el User recién creado por

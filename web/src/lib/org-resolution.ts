@@ -11,12 +11,145 @@
 // no hay membership. Los call-sites deciden qué hacer con ese null.
 
 import { prisma } from "@/lib/prisma";
+import { hasSupabaseRestConfig, restEq, supabaseRestFetch } from "@/lib/supabase-rest";
 
 export type OrgResolution = {
   orgId: string;
   memberId: string;
   role: "admin" | "dev";
 };
+
+type RestMember = {
+  id: string;
+  org_id: string;
+  email: string;
+  role: "admin" | "dev";
+  user_id: string | null;
+};
+
+type RestOrganization = {
+  id: string;
+  name: string;
+};
+
+function toResolution(member: RestMember): OrgResolution {
+  return {
+    orgId: member.org_id,
+    memberId: member.id,
+    role: member.role,
+  };
+}
+
+async function resolveOrgForUserWithRest(input: {
+  userId: string;
+  email: string;
+}): Promise<OrgResolution | null> {
+  const linkedRows = await supabaseRestFetch<RestMember[]>(
+    `/members?select=id,org_id,email,role,user_id&user_id=eq.${restEq(input.userId)}&limit=1`,
+  );
+  const linked = linkedRows[0];
+  if (linked) return toResolution(linked);
+
+  const invitedRows = await supabaseRestFetch<RestMember[]>(
+    `/members?select=id,org_id,email,role,user_id&email=eq.${restEq(input.email)}&user_id=is.null&order=created_at.asc&limit=1`,
+  );
+  const invited = invitedRows[0];
+  if (!invited) return null;
+
+  const updatedRows = await supabaseRestFetch<RestMember[]>(
+    `/members?id=eq.${restEq(invited.id)}`,
+    {
+      method: "PATCH",
+      body: JSON.stringify({ user_id: input.userId }),
+    },
+  );
+  return updatedRows[0] ? toResolution(updatedRows[0]) : null;
+}
+
+async function organizationExistsRest(id: string): Promise<boolean> {
+  const rows = await supabaseRestFetch<RestOrganization[]>(
+    `/organizations?select=id&id=eq.${restEq(id)}&limit=1`,
+  );
+  return Boolean(rows[0]);
+}
+
+async function nextAvailableOrgIdRest(slug: string): Promise<string> {
+  let candidate = slug;
+  let n = 2;
+  while (await organizationExistsRest(candidate)) {
+    candidate = `${slug}-${n}`;
+    n += 1;
+  }
+  return candidate;
+}
+
+async function createOrgForNewAdminWithRest(input: {
+  userId: string;
+  email: string;
+  name?: string | null;
+}): Promise<OrgResolution> {
+  const existing = await resolveOrgForUserWithRest(input);
+  if (existing) return existing;
+
+  const orgId = await nextAvailableOrgIdRest(suggestOrgId(input.email));
+  const orgName = suggestOrgName(input.email, input.name);
+
+  await supabaseRestFetch("/organizations", {
+    method: "POST",
+    body: JSON.stringify({ id: orgId, name: orgName }),
+  });
+  const memberRows = await supabaseRestFetch<RestMember[]>("/members", {
+    method: "POST",
+    body: JSON.stringify({
+      org_id: orgId,
+      email: input.email,
+      role: "admin",
+      user_id: input.userId,
+    }),
+  });
+  return toResolution(memberRows[0]);
+}
+
+async function joinViaCliWithRest(input: {
+  userId: string;
+  email: string;
+  orgInviteId: string | null;
+}): Promise<{ ok: true; resolution: OrgResolution } | { ok: false; error: CliJoinError }> {
+  const existing = await resolveOrgForUserWithRest(input);
+  if (existing) {
+    if (input.orgInviteId && existing.orgId !== input.orgInviteId) {
+      return {
+        ok: false,
+        error: { kind: "already_in_other_org", currentOrgId: existing.orgId },
+      };
+    }
+    return { ok: true, resolution: existing };
+  }
+
+  if (!input.orgInviteId) {
+    return { ok: false, error: { kind: "no_invite", email: input.email } };
+  }
+
+  const orgRows = await supabaseRestFetch<RestOrganization[]>(
+    `/organizations?select=id,name&id=eq.${restEq(input.orgInviteId)}&limit=1`,
+  );
+  const org = orgRows[0];
+  if (!org) {
+    return { ok: false, error: { kind: "org_not_found", orgId: input.orgInviteId } };
+  }
+
+  const memberRows = await supabaseRestFetch<RestMember[]>("/members", {
+    method: "POST",
+    body: JSON.stringify({
+      org_id: org.id,
+      email: input.email,
+      role: "dev",
+      user_id: input.userId,
+    }),
+  });
+
+  return { ok: true, resolution: toResolution(memberRows[0]) };
+}
 
 /**
  * Resuelve membership existente. NUNCA crea nada.
@@ -32,34 +165,40 @@ export async function resolveOrgForUser(input: {
   email: string;
   name?: string | null;
 }): Promise<OrgResolution | null> {
-  const linked = await prisma.member.findUnique({
-    where: { userId: input.userId },
-  });
-  if (linked) {
-    return {
-      orgId: linked.orgId,
-      memberId: linked.id,
-      role: linked.role,
-    };
-  }
-
-  const invited = await prisma.member.findFirst({
-    where: { email: input.email, userId: null },
-    orderBy: { createdAt: "asc" },
-  });
-  if (invited) {
-    const updated = await prisma.member.update({
-      where: { id: invited.id },
-      data: { userId: input.userId },
+  try {
+    const linked = await prisma.member.findUnique({
+      where: { userId: input.userId },
     });
-    return {
-      orgId: updated.orgId,
-      memberId: updated.id,
-      role: updated.role,
-    };
-  }
+    if (linked) {
+      return {
+        orgId: linked.orgId,
+        memberId: linked.id,
+        role: linked.role,
+      };
+    }
 
-  return null;
+    const invited = await prisma.member.findFirst({
+      where: { email: input.email, userId: null },
+      orderBy: { createdAt: "asc" },
+    });
+    if (invited) {
+      const updated = await prisma.member.update({
+        where: { id: invited.id },
+        data: { userId: input.userId },
+      });
+      return {
+        orgId: updated.orgId,
+        memberId: updated.id,
+        role: updated.role,
+      };
+    }
+
+    return null;
+  } catch (err) {
+    if (!hasSupabaseRestConfig()) throw err;
+    console.warn("[org-resolution] Prisma failed, falling back to Supabase REST:", err);
+    return resolveOrgForUserWithRest(input);
+  }
 }
 
 // =============================================================
@@ -148,26 +287,31 @@ export async function createOrgForNewAdmin(input: {
   const existing = await resolveOrgForUser(input);
   if (existing) return existing;
 
-  const orgId = await nextAvailableOrgId(suggestOrgId(input.email));
-  const orgName = suggestOrgName(input.email, input.name);
+  try {
+    const orgId = await nextAvailableOrgId(suggestOrgId(input.email));
+    const orgName = suggestOrgName(input.email, input.name);
+    const org = await prisma.organization.create({
+      data: { id: orgId, name: orgName },
+    });
+    const member = await prisma.member.create({
+      data: {
+        orgId: org.id,
+        email: input.email,
+        role: "admin",
+        userId: input.userId,
+      },
+    });
 
-  const org = await prisma.organization.create({
-    data: { id: orgId, name: orgName },
-  });
-  const member = await prisma.member.create({
-    data: {
+    return {
       orgId: org.id,
-      email: input.email,
+      memberId: member.id,
       role: "admin",
-      userId: input.userId,
-    },
-  });
-
-  return {
-    orgId: org.id,
-    memberId: member.id,
-    role: "admin",
-  };
+    };
+  } catch (err) {
+    if (!hasSupabaseRestConfig()) throw err;
+    console.warn("[org-resolution] Prisma admin creation failed, falling back to Supabase REST:", err);
+    return createOrgForNewAdminWithRest(input);
+  }
 }
 
 export type CliJoinError =
@@ -205,28 +349,34 @@ export async function joinViaCli(input: {
     return { ok: false, error: { kind: "no_invite", email: input.email } };
   }
 
-  const org = await prisma.organization.findUnique({
-    where: { id: input.orgInviteId },
-  });
-  if (!org) {
-    return { ok: false, error: { kind: "org_not_found", orgId: input.orgInviteId } };
+  try {
+    const org = await prisma.organization.findUnique({
+      where: { id: input.orgInviteId },
+    });
+    if (!org) {
+      return { ok: false, error: { kind: "org_not_found", orgId: input.orgInviteId } };
+    }
+
+    const member = await prisma.member.create({
+      data: {
+        orgId: org.id,
+        email: input.email,
+        role: "dev",
+        userId: input.userId,
+      },
+    });
+
+    return {
+      ok: true,
+      resolution: {
+        orgId: org.id,
+        memberId: member.id,
+        role: "dev",
+      },
+    };
+  } catch (err) {
+    if (!hasSupabaseRestConfig()) throw err;
+    console.warn("[org-resolution] Prisma CLI join failed, falling back to Supabase REST:", err);
+    return joinViaCliWithRest(input);
   }
-
-  const member = await prisma.member.create({
-    data: {
-      orgId: org.id,
-      email: input.email,
-      role: "dev",
-      userId: input.userId,
-    },
-  });
-
-  return {
-    ok: true,
-    resolution: {
-      orgId: org.id,
-      memberId: member.id,
-      role: "dev",
-    },
-  };
 }

@@ -3,12 +3,23 @@ import { NextResponse } from "next/server";
 import { ACTION } from "@/lib/arkiv/constants";
 import { evaluatePromptRisk, promptHash, redactPrompt } from "@/lib/arkiv/mappers";
 import { persistArkivPromptAudit } from "@/lib/arkiv/playground-audit";
+import {
+  evaluatePaymentPolicy,
+  normalizePaymentIntent,
+  worstVerdict,
+  type PaymentIntent,
+  type PolicyVerdict,
+} from "@/lib/payment-policy";
+import { appendPaymentResponse, buildDemoPaymentSignatureWithIntent, readDemoPayment } from "@/lib/x402-demo";
 
 type Payload = {
   prompt?: unknown;
   cliToken?: unknown;
   proxyUrl?: unknown;
+  paymentIntent?: Partial<PaymentIntent>;
 };
+
+const X402_RESOURCE = "/api/playground/interceptor-test";
 
 function proxyBaseUrl(): string {
   return process.env.ArkivGate_PROXY_URL ?? "";
@@ -86,6 +97,11 @@ function pickAction(actions: Array<EmbeddedHit["action"]>): "BLOCK" | "REDACT" |
   return "PASS";
 }
 
+function toPolicyVerdict(action?: "BLOCK" | "REDACT" | "WARN" | "LOG" | "PASS"): PolicyVerdict {
+  if (action === "BLOCK" || action === "REDACT" || action === "WARN") return action;
+  return "PASS";
+}
+
 async function runEmbeddedFallback(prompt: string) {
   const started = Date.now();
 
@@ -126,8 +142,14 @@ async function persistPromptResult(input: {
   prompt: string;
   traceId: string;
   action?: "BLOCK" | "REDACT" | "WARN" | "LOG" | "PASS";
+  severity?: "low" | "medium" | "high" | "critical";
+  reason?: string;
+  matchedRules?: string[];
+  riskScore?: number;
   model: string;
   latencyMs: number;
+  agentKey: string;
+  paymentPolicy: ReturnType<typeof evaluatePaymentPolicy>;
 }) {
   const evaluation = evaluatePromptRisk(input.prompt);
   const persisted = await persistArkivPromptAudit({
@@ -138,23 +160,68 @@ async function persistPromptResult(input: {
     promptRedacted: redactPrompt(input.prompt),
     promptHash: promptHash(input.prompt),
     action: input.action && input.action !== "PASS" ? input.action : evaluation.action,
-    severity: evaluation.severity,
-    reason: evaluation.reason,
-    matchedRules: evaluation.matchedRules,
-    riskScore: evaluation.riskScore,
+    severity: input.severity ?? evaluation.severity,
+    reason: input.reason ?? evaluation.reason,
+    matchedRules: input.matchedRules ?? evaluation.matchedRules,
+    riskScore: input.riskScore ?? evaluation.riskScore,
     sessionKey: `playground_${input.traceId}`,
-    agentKey: "agent_arkivgate_playground",
+    agentKey: input.agentKey,
+    agentPaymentRail: "x402-demo",
+    paymentPolicy: {
+      verdict: input.paymentPolicy.verdict,
+      severity: input.paymentPolicy.severity,
+      riskScore: input.paymentPolicy.riskScore,
+      reason: input.paymentPolicy.reason,
+      matchedRules: input.paymentPolicy.matchedRules,
+      walletBalanceUsd: input.paymentPolicy.intent.walletBalanceUsd,
+      transferUsd: input.paymentPolicy.intent.transferUsd,
+      adjustedTransferUsd: input.paymentPolicy.adjustedTransferUsd,
+      recentMaxTransferUsd: input.paymentPolicy.intent.recentMaxTransferUsd,
+      perTxLimitUsd: input.paymentPolicy.intent.perTxLimitUsd,
+      recipientRisk: input.paymentPolicy.intent.recipientRisk,
+    },
     latencyMs: input.latencyMs,
   });
 
   return {
     policyKey: persisted.policyKey,
+    agentEntityKey: persisted.agentEntityKey,
+    paymentReviewKey: persisted.paymentReviewKey,
     promptReviewKey: persisted.promptReviewKey,
     policyDecisionKey: persisted.policyDecisionKey,
     policyTxHash: persisted.policyTxHash,
+    agentTxHash: persisted.agentTxHash,
+    paymentReviewTxHash: persisted.paymentReviewTxHash,
     promptReviewTxHash: persisted.promptReviewTxHash,
     policyDecisionTxHash: persisted.policyDecisionTxHash,
     explorers: persisted.explorers,
+  };
+}
+
+function buildPolicyEnvelope(input: {
+  paymentPolicy: ReturnType<typeof evaluatePaymentPolicy>;
+  promptAction?: "BLOCK" | "REDACT" | "WARN" | "LOG" | "PASS";
+  promptReason?: string;
+  promptMatchedRules?: string[];
+}) {
+  const promptVerdict = toPolicyVerdict(input.promptAction);
+  const finalVerdict = worstVerdict([input.paymentPolicy.verdict, promptVerdict]);
+  const promptPolicy = {
+    verdict: promptVerdict,
+    reason: input.promptReason ?? (promptVerdict === "PASS" ? "prompt is within policy" : "prompt matched protected-content policy"),
+    matchedRules: input.promptMatchedRules ?? [],
+  };
+
+  return {
+    paymentPolicy: input.paymentPolicy,
+    promptPolicy,
+    finalDecision: {
+      verdict: finalVerdict,
+      reason:
+        finalVerdict === input.paymentPolicy.verdict && input.paymentPolicy.verdict !== "PASS"
+          ? input.paymentPolicy.reason
+          : promptPolicy.reason,
+    },
   };
 }
 
@@ -171,26 +238,95 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "prompt is required" }, { status: 400 });
   }
 
+  const payment = readDemoPayment(request.headers, X402_RESOURCE);
+  if (!payment.ok) return payment.response;
+  const paymentResponseHeader = payment.responseHeader;
+  const payerAgentKey = payment.payment.payer;
+  const paymentIntent = normalizePaymentIntent(payment.payment.paymentIntent ?? body?.paymentIntent);
+  const paymentPolicy = evaluatePaymentPolicy(paymentIntent);
+
+  function paidJson(body: unknown, init?: ResponseInit) {
+    const response = NextResponse.json(body, init);
+    appendPaymentResponse(response.headers, paymentResponseHeader);
+    return response;
+  }
+
   const resolvedBase = proxyUrl ?? sanitizeProxyUrl(proxyBaseUrl());
 
-  if (!resolvedBase) {
+  if (paymentPolicy.verdict === "BLOCK") {
     const fallback = await runEmbeddedFallback(prompt);
+    const policy = buildPolicyEnvelope({
+      paymentPolicy,
+      promptAction: fallback.action,
+      promptMatchedRules: fallback.upstream.matched_rules.map((hit) => hit.slug),
+    });
     const arkiv = await persistPromptResult({
       prompt,
       traceId: fallback.traceId,
-      action: fallback.action,
+      action: "BLOCK",
+      severity: "critical",
+      reason: policy.finalDecision.reason,
+      matchedRules: [
+        ...paymentPolicy.matchedRules.map((rule) => `payment:${rule}`),
+        ...policy.promptPolicy.matchedRules.map((rule) => `prompt:${rule}`),
+      ],
+      riskScore: Math.max(paymentPolicy.riskScore, 90),
       model: "claude-sonnet-4-6",
       latencyMs: fallback.elapsedMs,
+      agentKey: payerAgentKey,
+      paymentPolicy,
     });
 
-    return NextResponse.json({
+    return paidJson({
       ...fallback,
+      action: "BLOCK",
       arkiv,
+      x402: payment.settlement,
+      paymentPolicy,
+      promptPolicy: policy.promptPolicy,
+      finalDecision: policy.finalDecision,
+      hint: "Pago x402 firmado, pero la politica de fondos bloqueo la ejecucion antes del modelo.",
+    });
+  }
+
+  if (!resolvedBase) {
+    const fallback = await runEmbeddedFallback(prompt);
+    const policy = buildPolicyEnvelope({
+      paymentPolicy,
+      promptAction: fallback.action,
+      promptMatchedRules: fallback.upstream.matched_rules.map((hit) => hit.slug),
+    });
+    const arkiv = await persistPromptResult({
+      prompt,
+      traceId: fallback.traceId,
+      action: policy.finalDecision.verdict,
+      severity: paymentPolicy.verdict === policy.finalDecision.verdict ? paymentPolicy.severity : undefined,
+      reason: policy.finalDecision.reason,
+      matchedRules: [
+        ...paymentPolicy.matchedRules.map((rule) => `payment:${rule}`),
+        ...policy.promptPolicy.matchedRules.map((rule) => `prompt:${rule}`),
+      ],
+      riskScore: Math.max(paymentPolicy.riskScore, evaluatePromptRisk(prompt).riskScore),
+      model: "claude-sonnet-4-6",
+      latencyMs: fallback.elapsedMs,
+      agentKey: payerAgentKey,
+      paymentPolicy,
+    });
+
+    return paidJson({
+      ...fallback,
+      action: policy.finalDecision.verdict,
+      arkiv,
+      x402: payment.settlement,
+      paymentPolicy,
+      promptPolicy: policy.promptPolicy,
+      finalDecision: policy.finalDecision,
       hint: `${fallback.hint} La ejecucion tambien quedo persistida en Arkiv.`,
     });
   }
 
-  const upstreamUrl = `${resolvedBase}${buildPath(cliToken)}`;
+  const upstreamPath = buildPath(cliToken);
+  const upstreamUrl = `${resolvedBase}${upstreamPath}`;
   const started = Date.now();
 
   try {
@@ -199,6 +335,7 @@ export async function POST(request: Request) {
       headers: {
         "content-type": "application/json",
         "anthropic-version": "2023-06-01",
+        "PAYMENT-SIGNATURE": buildDemoPaymentSignatureWithIntent(upstreamPath, payerAgentKey, paymentIntent),
       },
       body: JSON.stringify({
         model: "claude-sonnet-4-6",
@@ -228,41 +365,109 @@ export async function POST(request: Request) {
 
     if (appNotFound) {
       const fallback = await runEmbeddedFallback(prompt);
+      const policy = buildPolicyEnvelope({
+        paymentPolicy,
+        promptAction: fallback.action,
+        promptMatchedRules: fallback.upstream.matched_rules.map((hit) => hit.slug),
+      });
       const arkiv = await persistPromptResult({
         prompt,
         traceId: fallback.traceId,
-        action: fallback.action,
+        action: policy.finalDecision.verdict,
+        severity: paymentPolicy.verdict === policy.finalDecision.verdict ? paymentPolicy.severity : undefined,
+        reason: policy.finalDecision.reason,
+        matchedRules: [
+          ...paymentPolicy.matchedRules.map((rule) => `payment:${rule}`),
+          ...policy.promptPolicy.matchedRules.map((rule) => `prompt:${rule}`),
+        ],
+        riskScore: Math.max(paymentPolicy.riskScore, evaluatePromptRisk(prompt).riskScore),
         model: "claude-sonnet-4-6",
         latencyMs: fallback.elapsedMs,
+        agentKey: payerAgentKey,
+        paymentPolicy,
       });
-      return NextResponse.json({
+      return paidJson({
         ...fallback,
+        action: policy.finalDecision.verdict,
         arkiv,
+        x402: payment.settlement,
+        paymentPolicy,
+        promptPolicy: policy.promptPolicy,
+        finalDecision: policy.finalDecision,
         hint: "El proxy configurado devolvio 'Application not found'. Se activo fallback embebido automaticamente.",
+      });
+    }
+
+    if (upstreamResponse.status === 401 && !cliToken) {
+      const fallback = await runEmbeddedFallback(prompt);
+      const policy = buildPolicyEnvelope({
+        paymentPolicy,
+        promptAction: fallback.action,
+        promptMatchedRules: fallback.upstream.matched_rules.map((hit) => hit.slug),
+      });
+      const arkiv = await persistPromptResult({
+        prompt,
+        traceId: fallback.traceId,
+        action: policy.finalDecision.verdict,
+        severity: paymentPolicy.verdict === policy.finalDecision.verdict ? paymentPolicy.severity : undefined,
+        reason: policy.finalDecision.reason,
+        matchedRules: [
+          ...paymentPolicy.matchedRules.map((rule) => `payment:${rule}`),
+          ...policy.promptPolicy.matchedRules.map((rule) => `prompt:${rule}`),
+        ],
+        riskScore: Math.max(paymentPolicy.riskScore, evaluatePromptRisk(prompt).riskScore),
+        model: "claude-sonnet-4-6",
+        latencyMs: fallback.elapsedMs,
+        agentKey: payerAgentKey,
+        paymentPolicy,
+      });
+      return paidJson({
+        ...fallback,
+        action: policy.finalDecision.verdict,
+        arkiv,
+        x402: payment.settlement,
+        paymentPolicy,
+        promptPolicy: policy.promptPolicy,
+        finalDecision: policy.finalDecision,
+        hint: "Railway esta online, pero el interceptor requiere CLI token. Para la demo publica se uso fallback embebido.",
       });
     }
 
     const action =
       (upstreamResponse.headers.get("x-team22-action") as typeof ACTION[keyof typeof ACTION] | null) ??
       undefined;
+    const policy = buildPolicyEnvelope({
+      paymentPolicy,
+      promptAction: action ?? "PASS",
+    });
     const arkiv = await persistPromptResult({
       prompt,
       traceId: upstreamResponse.headers.get("x-team22-trace-id") ?? `playground-${crypto.randomUUID().slice(0, 8)}`,
-      action: action ?? undefined,
+      action: policy.finalDecision.verdict,
+      severity: paymentPolicy.verdict === policy.finalDecision.verdict ? paymentPolicy.severity : undefined,
+      reason: policy.finalDecision.reason,
+      matchedRules: paymentPolicy.matchedRules.map((rule) => `payment:${rule}`),
+      riskScore: paymentPolicy.riskScore,
       model: "claude-sonnet-4-6",
       latencyMs: elapsedMs,
+      agentKey: payerAgentKey,
+      paymentPolicy,
     });
 
-    return NextResponse.json({
+    return paidJson({
       ok: upstreamResponse.ok,
       status: upstreamResponse.status,
       elapsedMs,
       mode: "direct",
       target: upstreamUrl,
-      action,
+      action: policy.finalDecision.verdict,
       traceId: upstreamResponse.headers.get("x-team22-trace-id"),
       upstream: parsed,
       arkiv,
+      x402: payment.settlement,
+      paymentPolicy,
+      promptPolicy: policy.promptPolicy,
+      finalDecision: policy.finalDecision,
       hint:
         upstreamResponse.status === 401 && !cliToken
           ? "El interceptor requiere token CLI. Corre npx ArkivGate setup y pega tu token para test real."
@@ -270,16 +475,35 @@ export async function POST(request: Request) {
     });
   } catch (error) {
     const fallback = await runEmbeddedFallback(prompt);
+    const policy = buildPolicyEnvelope({
+      paymentPolicy,
+      promptAction: fallback.action,
+      promptMatchedRules: fallback.upstream.matched_rules.map((hit) => hit.slug),
+    });
     const arkiv = await persistPromptResult({
       prompt,
       traceId: fallback.traceId,
-      action: fallback.action,
+      action: policy.finalDecision.verdict,
+      severity: paymentPolicy.verdict === policy.finalDecision.verdict ? paymentPolicy.severity : undefined,
+      reason: policy.finalDecision.reason,
+      matchedRules: [
+        ...paymentPolicy.matchedRules.map((rule) => `payment:${rule}`),
+        ...policy.promptPolicy.matchedRules.map((rule) => `prompt:${rule}`),
+      ],
+      riskScore: Math.max(paymentPolicy.riskScore, evaluatePromptRisk(prompt).riskScore),
       model: "claude-sonnet-4-6",
       latencyMs: fallback.elapsedMs,
+      agentKey: payerAgentKey,
+      paymentPolicy,
     });
-    return NextResponse.json({
+    return paidJson({
       ...fallback,
+      action: policy.finalDecision.verdict,
       arkiv,
+      x402: payment.settlement,
+      paymentPolicy,
+      promptPolicy: policy.promptPolicy,
+      finalDecision: policy.finalDecision,
       hint: `No se pudo alcanzar el interceptor (${error instanceof Error ? error.message : "unknown error"}). Fallback embebido activo.`,
     });
   }

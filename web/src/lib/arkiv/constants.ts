@@ -7,6 +7,8 @@ export const PROJECT_ATTRIBUTE = {
 
 export const ENTITY_TYPE = {
   organization: "organization",
+  agent: "agent",
+  paymentReview: "payment_review",
   policy: "policy",
   agentSession: "agent_session",
   promptReview: "prompt_review",
@@ -34,6 +36,8 @@ export type SeverityType = (typeof SEVERITY)[keyof typeof SEVERITY];
 
 export const EXPIRATION = {
   agentSession: ExpirationTime.fromDays(7),
+  agent: ExpirationTime.fromDays(365),
+  paymentReview: ExpirationTime.fromDays(180),
   promptReview: ExpirationTime.fromDays(30),
   policyDecision: ExpirationTime.fromDays(180),
   ruleSuggestion: ExpirationTime.fromDays(7),

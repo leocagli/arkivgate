@@ -42,10 +42,88 @@ export function buildPolicyEntity(input: {
   };
 }
 
+export function buildAgentEntity(input: BaseEntityInput & {
+  agentKey: string;
+  paymentRail?: "x402-demo" | "none";
+}) {
+  const createdAt = input.createdAt ?? Date.now();
+
+  return {
+    payload: jsonToPayload({
+      agentKey: input.agentKey,
+      paymentRail: input.paymentRail ?? "none",
+    }),
+    contentType: "application/json",
+    attributes: [
+      PROJECT_ATTRIBUTE,
+      { key: "entityType", value: ENTITY_TYPE.agent },
+      { key: "orgKey", value: input.orgKey },
+      { key: "agentKey", value: input.agentKey },
+      { key: "paymentRail", value: input.paymentRail ?? "none" },
+      { key: "createdAt", value: createdAt },
+    ],
+    expiresIn: EXPIRATION.agent,
+  };
+}
+
+export function buildPaymentReviewEntity(
+  input: BaseEntityInput & {
+    agentKey: string;
+    agentEntityKey: string;
+    paymentRail: "x402-demo" | "none";
+    verdict: ActionType | "PASS";
+    severity: SeverityType;
+    riskScore: number;
+    reason: string;
+    matchedRules: string[];
+    walletBalanceUsd?: number;
+    transferUsd?: number;
+    adjustedTransferUsd?: number;
+    recentMaxTransferUsd?: number;
+    perTxLimitUsd?: number;
+    recipientRisk?: "low" | "unknown" | "high";
+  },
+) {
+  const createdAt = input.createdAt ?? Date.now();
+
+  return {
+    payload: jsonToPayload({
+      agentKey: input.agentKey,
+      agentEntityKey: input.agentEntityKey,
+      paymentRail: input.paymentRail,
+      verdict: input.verdict,
+      reason: input.reason,
+      matchedRules: input.matchedRules,
+      walletBalanceUsd: input.walletBalanceUsd,
+      transferUsd: input.transferUsd,
+      adjustedTransferUsd: input.adjustedTransferUsd,
+      recentMaxTransferUsd: input.recentMaxTransferUsd,
+      perTxLimitUsd: input.perTxLimitUsd,
+      recipientRisk: input.recipientRisk,
+    }),
+    contentType: "application/json",
+    attributes: [
+      PROJECT_ATTRIBUTE,
+      { key: "entityType", value: ENTITY_TYPE.paymentReview },
+      { key: "orgKey", value: input.orgKey },
+      { key: "agentKey", value: input.agentKey },
+      { key: "agentEntityKey", value: input.agentEntityKey },
+      { key: "paymentRail", value: input.paymentRail },
+      { key: "action", value: input.verdict },
+      { key: "severity", value: input.severity },
+      { key: "riskScore", value: input.riskScore },
+      { key: "createdAt", value: createdAt },
+    ],
+    expiresIn: EXPIRATION.paymentReview,
+  };
+}
+
 export function buildPromptReviewEntity(
   input: BaseEntityInput & {
     sessionKey: string;
     agentKey: string;
+    agentEntityKey?: string;
+    paymentReviewKey?: string;
     model: string;
     promptHash: string;
     promptRedacted: string;
@@ -63,6 +141,8 @@ export function buildPromptReviewEntity(
       promptHash: input.promptHash,
       promptRedacted: input.promptRedacted,
       model: input.model,
+      agentEntityKey: input.agentEntityKey,
+      paymentReviewKey: input.paymentReviewKey,
       matchedRules: input.matchedRules,
       latencyMs: input.latencyMs,
     }),
@@ -73,6 +153,8 @@ export function buildPromptReviewEntity(
       { key: "orgKey", value: input.orgKey },
       { key: "sessionKey", value: input.sessionKey },
       { key: "agentKey", value: input.agentKey },
+      ...(input.agentEntityKey ? [{ key: "agentEntityKey", value: input.agentEntityKey }] : []),
+      ...(input.paymentReviewKey ? [{ key: "paymentReviewKey", value: input.paymentReviewKey }] : []),
       { key: "action", value: input.action },
       { key: "severity", value: input.severity },
       { key: "riskScore", value: input.riskScore },
@@ -85,6 +167,7 @@ export function buildPromptReviewEntity(
 export function buildPolicyDecisionEntity(
   input: BaseEntityInput & {
     promptReviewKey: string;
+    paymentReviewKey?: string;
     policyKey: string;
     finalAction: ActionType;
     severity: SeverityType;
@@ -98,6 +181,7 @@ export function buildPolicyDecisionEntity(
     payload: jsonToPayload({
       reason: input.reason,
       finalAction: input.finalAction,
+      paymentReviewKey: input.paymentReviewKey,
       policyLayer: input.policyLayer ?? "regex",
       explanation:
         input.finalAction === ACTION.block
@@ -110,6 +194,7 @@ export function buildPolicyDecisionEntity(
       { key: "entityType", value: ENTITY_TYPE.policyDecision },
       { key: "orgKey", value: input.orgKey },
       { key: "promptReviewKey", value: input.promptReviewKey },
+      ...(input.paymentReviewKey ? [{ key: "paymentReviewKey", value: input.paymentReviewKey }] : []),
       { key: "policyKey", value: input.policyKey },
       { key: "action", value: input.finalAction },
       { key: "severity", value: input.severity },

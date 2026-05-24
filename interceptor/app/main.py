@@ -13,8 +13,9 @@ import json
 import logging
 import time
 from contextlib import asynccontextmanager
+from datetime import datetime
 from typing import Annotated, Any
-from uuid import UUID
+from uuid import NAMESPACE_URL, UUID, uuid5
 
 from fastapi import Depends, FastAPI, Request
 from fastapi.responses import JSONResponse, Response, StreamingResponse
@@ -29,7 +30,7 @@ from .cascade import PolicyHit, run_regex_layer
 from .cli_auth import CliCaller, resolve_cli_token
 from .config import settings
 from .db import get_session
-from .enums import Action, PolicyLayer, winning_action
+from .enums import Action, PolicyDomain, PolicyLayer, PolicySource, Severity, winning_action
 from .models import Interaction, Policy
 from .nl_layer import is_enabled as nl_enabled
 from .nl_layer import run_nl_layer
@@ -43,8 +44,84 @@ from .upstream import (
     open_upstream,
     stream_response,
 )
+from .x402_demo import DemoPayment, PAYMENT_RESPONSE_HEADER, evaluate_payment_policy, read_demo_payment
 
 logger = logging.getLogger("app.main")
+
+
+def _demo_runtime_context(token: str) -> RuntimeContext | None:
+    if not settings.demo_cli_token or token != settings.demo_cli_token:
+        return None
+
+    caller = CliCaller(
+        member_id=uuid5(NAMESPACE_URL, "arkivgate-demo-cli"),
+        org_id=settings.default_org_id,
+        email="demo-cli@arkivgate.local",
+    )
+    now = datetime.utcnow()
+    policies = [
+        Policy(
+            id=uuid5(NAMESPACE_URL, "arkivgate-demo-policy-aws-key"),
+            org_id=settings.default_org_id,
+            slug="aws-access-key",
+            domain=PolicyDomain.credentials,
+            layer=PolicyLayer.regex,
+            rule="AWS access keys cannot be sent to the model",
+            pattern=r"AKIA[0-9A-Z]{16}",
+            default_action=Action.BLOCK,
+            severity=Severity.high,
+            source=PolicySource.seed,
+            is_active=True,
+            created_at=now,
+            updated_at=now,
+        ),
+        Policy(
+            id=uuid5(NAMESPACE_URL, "arkivgate-demo-policy-dotenv"),
+            org_id=settings.default_org_id,
+            slug="dotenv-paste",
+            domain=PolicyDomain.credentials,
+            layer=PolicyLayer.regex,
+            rule="Env files and raw secret names cannot be sent to the model",
+            pattern=r"(\\.env|API_KEY|SECRET_KEY|DATABASE_URL)",
+            default_action=Action.BLOCK,
+            severity=Severity.high,
+            source=PolicySource.seed,
+            is_active=True,
+            created_at=now,
+            updated_at=now,
+        ),
+        Policy(
+            id=uuid5(NAMESPACE_URL, "arkivgate-demo-policy-email"),
+            org_id=settings.default_org_id,
+            slug="email-pii",
+            domain=PolicyDomain.pii,
+            layer=PolicyLayer.regex,
+            rule="Email addresses are redacted before upstream execution",
+            pattern=r"[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,}",
+            default_action=Action.REDACT,
+            severity=Severity.medium,
+            source=PolicySource.seed,
+            is_active=True,
+            created_at=now,
+            updated_at=now,
+        ),
+        Policy(
+            id=uuid5(NAMESPACE_URL, "arkivgate-demo-policy-client-name"),
+            org_id=settings.default_org_id,
+            slug="client-name",
+            domain=PolicyDomain.business_policy,
+            layer=PolicyLayer.regex,
+            rule="Client names should be reviewed before upstream execution",
+            pattern=r"(acme|globex|initech|umbrella)",
+            default_action=Action.WARN,
+            severity=Severity.medium,
+            source=PolicySource.seed,
+            is_active=True,
+            created_at=now,
+            updated_at=now,
+        ),
+    ]
+    return RuntimeContext(caller=caller, policies=policies)
 
 
 @asynccontextmanager
@@ -97,6 +174,30 @@ async def _load_active_nl_policies(session: AsyncSession, org_id: str) -> list[P
 
 def _winning_hit(hits: list[PolicyHit], action: Action) -> PolicyHit | None:
     return next((h for h in hits if h.action == action), None)
+
+
+def _attach_payment_headers(headers: dict[str, str], payment: DemoPayment | None) -> dict[str, str]:
+    if payment is None:
+        return headers
+    return {
+        **headers,
+        PAYMENT_RESPONSE_HEADER: payment.response_header,
+        "x-team22-payment-rail": "x402-demo",
+        "x-team22-agent-key": str(payment.payload["payer"]),
+    }
+
+
+def _attach_payment_policy_headers(
+    headers: dict[str, str],
+    payment_policy: dict[str, object] | None,
+) -> dict[str, str]:
+    if payment_policy is None:
+        return headers
+    return {
+        **headers,
+        "x-team22-payment-policy": str(payment_policy["verdict"]),
+        "x-team22-payment-risk": str(payment_policy["riskScore"]),
+    }
 
 
 # Audit column has CHECK (length(prompt) < 50000); leave room for the
@@ -173,6 +274,9 @@ async def _persist_and_emit_best_effort(
     latency_by_layer: dict[str, int],
     upstream_status: int | None,
     skip_persist: bool = False,
+    agent_key: str = "agent_arkivgate_proxy",
+    agent_payment_rail: str = "none",
+    payment_policy: dict[str, object] | None = None,
 ) -> None:
     # Policy enforcement must not fail closed because audit persistence/bridge
     # had an operational issue (DB hiccup, bridge timeout, etc.).
@@ -210,6 +314,9 @@ async def _persist_and_emit_best_effort(
         reason=reason,
         latency_total_ms=latency_total_ms,
         upstream_status=upstream_status,
+        agent_key=agent_key,
+        agent_payment_rail=agent_payment_rail,
+        payment_policy=payment_policy,
     )
 
 
@@ -224,6 +331,9 @@ def _schedule_arkiv_bridge(
     reason: str,
     latency_total_ms: int,
     upstream_status: int | None,
+    agent_key: str,
+    agent_payment_rail: str,
+    payment_policy: dict[str, object] | None,
 ) -> None:
     async def _run() -> None:
         await _emit_arkiv_bridge(
@@ -236,6 +346,9 @@ def _schedule_arkiv_bridge(
             reason=reason,
             latency_total_ms=latency_total_ms,
             upstream_status=upstream_status,
+            agent_key=agent_key,
+            agent_payment_rail=agent_payment_rail,
+            payment_policy=payment_policy,
         )
 
     task = asyncio.create_task(_run())
@@ -297,6 +410,10 @@ async def messages_via_cli(
         caller = runtime_context.caller if runtime_context else None
 
     if caller is None:
+        runtime_context = _demo_runtime_context(token)
+        caller = runtime_context.caller if runtime_context else None
+
+    if caller is None:
         return JSONResponse(
             {"error": "unknown or revoked arkivgate token"},
             status_code=401,
@@ -326,6 +443,17 @@ async def _process_messages(
             {"error": "invalid messages api shape", "detail": exc.errors()},
             status_code=400,
         )
+
+    payment: DemoPayment | None = None
+    payment_policy: dict[str, object] | None = None
+    if settings.x402_demo_enabled:
+        payment_read = read_demo_payment(request.headers, request.url.path)
+        if not payment_read.ok:
+            assert payment_read.response is not None
+            return payment_read.response
+        payment = payment_read.payment
+        assert payment is not None
+        payment_policy = evaluate_payment_policy(payment.payload.get("paymentIntent"))
 
     is_streaming = bool(body_dict.get("stream"))
     if caller is not None:
@@ -395,6 +523,46 @@ async def _process_messages(
         "x-team22-trace-id": trace_id,
         "x-team22-action": action.value,
     }
+    response_headers = _attach_payment_headers(response_headers, payment)
+    response_headers = _attach_payment_policy_headers(response_headers, payment_policy)
+    agent_key = str(payment.payload["payer"]) if payment else "agent_arkivgate_proxy"
+    agent_payment_rail = "x402-demo" if payment else "none"
+
+    if payment_policy and payment_policy["verdict"] == "BLOCK":
+        hit = PolicyHit(
+            policy_id="payment-full-balance",
+            slug=str(payment_policy["matchedRules"][0])
+            if payment_policy["matchedRules"]
+            else "payment-policy",
+            layer=PolicyLayer.pattern,
+            action=Action.BLOCK,
+            rule=str(payment_policy["reason"]),
+            matched_text="x402 payment intent",
+        )
+        total_ms = int((time.perf_counter() - started) * 1000)
+        await _persist_and_emit_best_effort(
+            session,
+            trace_id=trace_id,
+            org_id=org_id,
+            user_id=user_id,
+            request_model=parsed.model,
+            parsed=parsed,
+            hits=[hit],
+            action=Action.BLOCK,
+            reason=str(payment_policy["reason"]),
+            latency_total_ms=total_ms,
+            latency_by_layer={**latency_by_layer, "payment_policy": 0},
+            upstream_status=None,
+            skip_persist=runtime_context is not None,
+            agent_key=agent_key,
+            agent_payment_rail=agent_payment_rail,
+            payment_policy=payment_policy,
+        )
+        return JSONResponse(
+            content=synthesize_block_message(parsed.model, trace_id, hit),
+            status_code=200,
+            headers=response_headers,
+        )
 
     # ----- BLOCK --------------------------------------------------
     if action == Action.BLOCK:
@@ -420,6 +588,9 @@ async def _process_messages(
             latency_by_layer=latency_by_layer,
             upstream_status=None,
             skip_persist=runtime_context is not None,
+            agent_key=agent_key,
+            agent_payment_rail=agent_payment_rail,
+            payment_policy=payment_policy,
         )
         if is_streaming:
             return StreamingResponse(
@@ -475,6 +646,9 @@ async def _process_messages(
             latency_by_layer=latency_by_layer,
             upstream_status=upstream_resp.status_code,
             skip_persist=runtime_context is not None,
+            agent_key=agent_key,
+            agent_payment_rail=agent_payment_rail,
+            payment_policy=payment_policy,
         )
 
         upstream_headers = filtered_response_headers(upstream_resp.headers)
@@ -526,8 +700,11 @@ async def _process_messages(
         reason=reason,
         latency_total_ms=total_ms,
         latency_by_layer=latency_by_layer,
-        upstream_status=upstream_resp.status_code,
+            upstream_status=upstream_resp.status_code,
         skip_persist=runtime_context is not None,
+        agent_key=agent_key,
+        agent_payment_rail=agent_payment_rail,
+        payment_policy=payment_policy,
     )
 
     upstream_headers = filtered_response_headers(upstream_resp.headers)
@@ -600,6 +777,9 @@ async def _emit_arkiv_bridge(
     reason: str,
     latency_total_ms: int,
     upstream_status: int | None,
+    agent_key: str,
+    agent_payment_rail: str,
+    payment_policy: dict[str, object] | None,
 ) -> None:
     prompt_redacted = _clip_for_storage(redact_for_storage(_flatten_prompt(parsed), hits))
     matched_rules = sorted({h.slug for h in hits})
@@ -622,10 +802,31 @@ async def _emit_arkiv_bridge(
             "riskScore": risk_score,
             "latencyMs": latency_total_ms,
             "upstreamStatus": upstream_status,
-            "agentKey": "agent_arkivgate_proxy",
+            "agentKey": agent_key,
+            "agentPaymentRail": agent_payment_rail,
+            "paymentPolicy": _bridge_payment_policy(payment_policy),
             "sessionKey": f"session_{trace_id}",
             "createdAt": int(time.time() * 1000),
             "policySlugHint": matched_rules[0] if matched_rules else None,
         },
     )
 
+
+def _bridge_payment_policy(payment_policy: dict[str, object] | None) -> dict[str, object] | None:
+    if payment_policy is None:
+        return None
+    intent = payment_policy.get("intent")
+    intent_dict = intent if isinstance(intent, dict) else {}
+    return {
+        "verdict": payment_policy.get("verdict"),
+        "severity": payment_policy.get("severity"),
+        "riskScore": payment_policy.get("riskScore"),
+        "reason": payment_policy.get("reason"),
+        "matchedRules": payment_policy.get("matchedRules"),
+        "walletBalanceUsd": intent_dict.get("walletBalanceUsd"),
+        "transferUsd": intent_dict.get("transferUsd"),
+        "adjustedTransferUsd": payment_policy.get("adjustedTransferUsd"),
+        "recentMaxTransferUsd": intent_dict.get("recentMaxTransferUsd"),
+        "perTxLimitUsd": intent_dict.get("perTxLimitUsd"),
+        "recipientRisk": intent_dict.get("recipientRisk"),
+    }

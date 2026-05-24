@@ -1,6 +1,30 @@
 ﻿# ArkivGate
 
-ArkivGate is an AI governance platform for development teams. It adds policy enforcement, auditable decision logs, and team controls around model interactions.
+ArkivGate is an AI governance platform for development teams and agent runtimes. It adds x402 payment gating, policy enforcement, auditable decision logs, and team controls around model interactions.
+
+## x402 Agent Runtime
+
+ArkivGate now has a demo x402 rail across the project:
+
+- The web playground protects `/api/playground/interceptor-test` with a 402 challenge, signs a demo payment as an agent, reruns the request, and shows the payment response.
+- The Python interceptor can protect the real attributed runtime path, `POST /cli/<token>/v1/messages`, when `X402_DEMO_ENABLED=true`.
+- Paid executions run through two policy lanes: payment intent policy and prompt policy. Both produce `PASS`, `WARN`, `REDACT`, or `BLOCK`; the final decision uses the highest severity.
+- Payment policy examples: moving 100% of wallet balance blocks, moving over 50% above recent behavior warns, exceeding a per-transaction cap redacts/caps the amount.
+- Executions are bridged into Arkiv as connected evidence: paying agent entity, payment review, prompt review, policy decision, and transaction links.
+
+This is intentionally demo settlement. It proves the protocol shape and product loop without moving real funds. A real x402 facilitator can replace the demo verifier later without changing the core policy and Arkiv evidence flow.
+
+## ETHNS Challenge Pitch
+
+ArkivGate is positioned for the Arkiv x ETHNS Builder Challenge as an **AI + Privacy** hybrid: paid AI agents can request execution, ArkivGate evaluates payment intent and prompt risk before the model, and the resulting evidence is written as queryable Arkiv entities.
+
+Pitch/demo materials live in [PITCH_DEMO.md](./PITCH_DEMO.md), including:
+
+- 2-3 minute demo script
+- challenge rubric mapping
+- Arkiv entity/relationship explanation
+- submission form copy
+- recording checklist
 
 ## Repository Structure
 
@@ -20,11 +44,40 @@ ArkivGate is an AI governance platform for development teams. It adds policy enf
    - uv sync
    - uv run uvicorn app.main:app --host 0.0.0.0 --port 8080 --reload
 
+### x402 Runtime Smoke
+
+With the interceptor running and `X402_DEMO_ENABLED=true`, an unpaid agent call receives `402 Payment Required` plus a `PAYMENT-REQUIRED` header. The caller must retry the same resource with `PAYMENT-SIGNATURE`; successful responses include `PAYMENT-RESPONSE`, `x-team22-payment-rail: x402-demo`, and `x-team22-agent-key`.
+
+The playground performs that handshake automatically so demos can show the full loop without a paid Claude API key: payment gate, policy decision, fallback or upstream response, and Arkiv proof.
+
 ## Deployment
 
 - Web: Vercel (root directory: web)
 - Interceptor: Railway or Render
 - Database: Supabase Postgres
+
+### Vercel + Railway contract
+
+For the deployed web to use the real interceptor, set this in Vercel:
+
+```env
+ArkivGate_PROXY_URL=https://<railway-interceptor-domain>.up.railway.app
+```
+
+For Railway, use `interceptor/` as the service root. Required variables:
+
+```env
+DATABASE_URL=postgresql://...
+ANTHROPIC_UPSTREAM_URL=https://api.anthropic.com
+DEFAULT_ORG_ID=demo
+ARKIV_BRIDGE_URL=https://arkivgate.vercel.app/api/internal/arkiv/interactions
+ARKIV_BRIDGE_TOKEN=<same-token-as-vercel>
+X402_DEMO_ENABLED=true
+```
+
+With `X402_DEMO_ENABLED=true`, the web playground signs both hops: first its own
+Vercel route, then the Railway interceptor resource (`/cli/<token>/v1/messages`
+when a CLI token is provided). Railway should return `/health` as `200 OK`.
 
 ## Production Runtime Validation (May 2026)
 
@@ -63,6 +116,67 @@ Previous playground validation entity:
 
 - Policy: https://data.arkiv.network/entity/0xab963b8a0ec8ffec8ff02f2dc89d6bc73dcf952c4230d64040643bded75a30c4
 
+## Functional Roadmap
+
+This is the current implementation gap between the working MVP and a production-ready operator workflow.
+
+### MVP Ready For Production
+
+1. Automatic persistence without manual replay
+   - Stabilize interceptor -> database writes from Railway.
+   - Stabilize automatic Arkiv bridge emission from runtime, without depending on manual internal replay.
+   - Add bounded retries and explicit failure states when persistence falls back to best-effort mode.
+
+2. Admin visibility for runtime evidence
+   - Show trace id, action, policy match reason, Arkiv entity keys, and tx hash links directly in the admin UI.
+   - Expose the same evidence now shown in the playground inside operator-facing event views.
+   - Make it possible to inspect a runtime decision without using internal routes or scripts.
+
+3. Complete CLI onboarding lifecycle
+   - Keep browser approval + device flow stable for real users, not only seeded test tokens.
+   - Add clear token status, revoke, and re-issue flows.
+   - Improve org-scoped error handling when a user is linked to the wrong org or has an expired approval flow.
+
+4. Policy management hardening
+   - Add clearer attribution of which policy or rule caused each BLOCK/REDACT/WARN/LOG result.
+   - Support draft/published policy states and safer rollout semantics.
+   - Make policy precedence and conflict resolution explicit in the admin workflow.
+
+5. Operational observability
+   - Track fallback usage, bridge failures, persistence failures, and upstream latency.
+   - Surface health signals for Vercel web, Railway interceptor, and Arkiv bridge.
+   - Add operator-visible alerts for events that were evaluated but not fully persisted.
+
+### Post-MVP
+
+1. Policy versioning and environment rollout
+   - Version policies over time.
+   - Enable publish-by-environment or staged rollout.
+   - Allow rollback to a known-good ruleset.
+
+2. Richer admin cockpit
+   - Filter and search interactions by trace, user, org member, policy, and action.
+   - Add detailed event timelines and drill-down per interaction.
+   - Summarize operational impact per policy.
+
+3. Governance workflows
+   - Review queues for suggested rules.
+   - Approval chains for policy changes.
+   - Change history suitable for audits and internal governance reviews.
+
+4. Reliability and scale
+   - Queue-backed persistence or bridge dispatch for burst traffic.
+   - Better retry semantics and dead-letter handling.
+   - Stronger provider abstraction if additional model vendors are added.
+
+### Suggested Build Order
+
+1. Finish automatic persistence and Arkiv emission.
+2. Expose runtime evidence in the admin panel.
+3. Close the real-user CLI onboarding and token lifecycle.
+4. Harden policy rollout semantics.
+5. Add observability and alerting.
+
 ## License
 
-Private project.
+MIT. See [LICENSE](./LICENSE).

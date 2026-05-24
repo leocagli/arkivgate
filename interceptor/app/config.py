@@ -24,5 +24,11 @@ class Settings(BaseSettings):
     arkiv_bridge_url: str | None = None
     arkiv_bridge_token: str | None = None
 
+    # Optional demo x402 gate for agent-paid runtime calls. When enabled,
+    # POST /cli/{token}/v1/messages requires PAYMENT-SIGNATURE and returns a
+    # 402 challenge otherwise.
+    x402_demo_enabled: bool = False
+    demo_cli_token: str | None = None
+
 
 settings = Settings()
