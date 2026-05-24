@@ -27,12 +27,12 @@ function safeCallbackUrl(raw: string | undefined): string {
 export default async function AdminLoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ callbackUrl?: string }>;
+  searchParams: Promise<{ callbackUrl?: string; error?: string }>;
 }) {
   if (!isAuthConfigured()) {
     redirect("/");
   }
-  const { callbackUrl: raw } = await searchParams;
+  const { callbackUrl: raw, error } = await searchParams;
   const callbackUrl = safeCallbackUrl(raw);
 
   const session = await auth();
@@ -114,6 +114,15 @@ export default async function AdminLoginPage({
                 </span>
               </button>
             </form>
+
+            {error ? (
+              <div
+                className="border border-[#8a2d2d]/25 bg-[#f8e7e7] p-3 text-sm leading-relaxed text-[#8a2d2d]"
+                style={{ borderRadius: "var(--radius)" }}
+              >
+                Google no completo el callback. Volve a iniciar sesion desde este boton.
+              </div>
+            ) : null}
 
             <p className="font-mono text-[11px] leading-relaxed text-graphite">
               // sólo loggeamos email, nombre y avatar.

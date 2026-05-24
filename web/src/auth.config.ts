@@ -21,6 +21,7 @@ export const authConfig = {
   ],
   pages: {
     signIn: "/admin/login",
+    error: "/admin/login",
   },
   // JWT en sesión nos deja chequear auth en proxy.ts sin abrir conexión a DB.
   // Los users sí se guardan en DB vía el adapter (auth.ts).
