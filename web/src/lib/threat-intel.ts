@@ -32,11 +32,11 @@ type ThreatRecord = {
   aiSummary: string;
 };
 
-export const DEMO_THREAT_ADDRESS = "0x379a2970755003256c19a4de88b9c05b21ab401f";
+export const DEMO_THREAT_ADDRESS = "0xa11ce0000000000000000000000000000000d3ad";
 
 const THREAT_REGISTRY: ThreatRecord[] = [
   {
-    reportId: "cs-approval-drain-001",
+    reportId: "arkivgate-approval-drain-demo-001",
     address: DEMO_THREAT_ADDRESS,
     threatType: "approval_drain",
     severityScore: 8,

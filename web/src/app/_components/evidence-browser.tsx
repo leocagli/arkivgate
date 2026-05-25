@@ -21,6 +21,8 @@ type EvidenceEntity = {
     paymentReviewKey?: string;
     promptReviewKey?: string;
     policyKey?: string;
+    threatReportKey?: string;
+    threatConfirmationKey?: string;
   };
 };
 
@@ -41,6 +43,8 @@ const ENTITY_TYPES = [
   "policy_decision",
   "prompt_review",
   "payment_review",
+  "threat_report",
+  "threat_confirmation",
   "agent",
   "agent_profile",
   "policy",

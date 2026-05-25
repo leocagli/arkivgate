@@ -43,8 +43,8 @@ The live demo exposes Arkiv as a queryable product layer, not only as explorer l
 
 ### Threat Intelligence Layer
 
-ArkivGate borrows the strongest ClearShield idea without changing product focus:
-community threat intelligence becomes another runtime policy lane for paid agents.
+ArkivGate includes a native community threat-intel lane without changing product focus:
+reported wallet and contract risk becomes another runtime policy lane for paid agents.
 
 Current demo flow:
 
