@@ -28,28 +28,28 @@ const RULES: Rule[] = [
   {
     id: "aws-key",
     label: "AWS key",
-    description: "Detecta credentials tipo AKIA...",
+    description: "Detects AKIA-style credentials",
     action: "BLOCK",
     pattern: /AKIA[0-9A-Z]{16}/g,
   },
   {
     id: "dotenv",
     label: ".env secret",
-    description: "Bloquea menciones de .env o tokens comunes",
+    description: "Blocks .env mentions and common tokens",
     action: "BLOCK",
     pattern: /(\.env|API_KEY|SECRET_KEY|DATABASE_URL)/gi,
   },
   {
     id: "email",
     label: "Email address",
-    description: "Redacta direcciones de correo",
+    description: "Redacts email addresses",
     action: "REDACT",
     pattern: /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi,
   },
   {
     id: "phone",
     label: "Phone number",
-    description: "Redacta telefonos con prefijo opcional",
+    description: "Redacts phone numbers with optional prefix",
     action: "REDACT",
     pattern: /(?:\+?\d{1,3}[\s-]?)?(?:\(?\d{2,4}\)?[\s-]?)\d{3,4}[\s-]?\d{3,4}/g,
   },
@@ -63,7 +63,7 @@ const RULES: Rule[] = [
 ];
 
 const PRESETS = [
-  "Necesito ayuda con AKIAIOSFODNN7EXAMPLE y mi .env de prod",
+  "I need help with AKIAIOSFODNN7EXAMPLE and my production .env",
   "Envia este reporte a maria@acme.com y llama al +54 11 5555 1212",
   "Resume la reunion interna sin compartir datos sensibles",
 ];
@@ -558,7 +558,7 @@ export function PolicyPlayground() {
               className="border border-[#7a8f93]/35 bg-white px-2.5 py-1 font-mono text-[11px] uppercase tracking-[0.12em] text-graphite transition-colors hover:bg-[#f3f6f6]"
               style={{ borderRadius: "6px" }}
             >
-              limpiar
+              clear
             </button>
           </div>
         </article>
@@ -631,7 +631,7 @@ export function PolicyPlayground() {
           <div>
             <p className="font-mono text-xs uppercase tracking-[0.14em] text-graphite">paid agent execution</p>
             <p className="mt-1 text-sm text-graphite-dark">
-              El agente recibe 402, firma el pago demo y queda registrado como entidad Arkiv.
+              The agent receives 402, signs the demo payment, and is recorded as an Arkiv entity.
             </p>
           </div>
           <button

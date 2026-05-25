@@ -44,7 +44,7 @@ const SCENARIOS: Scenario[] = [
   },
   {
     id: "client",
-    label: "cliente",
+    label: "client",
     prompt: "escribime un email para Acme Corp",
     exitLayer: 3,
     verdict: "REDACT",

@@ -75,12 +75,13 @@ function WalletOwnedProfileInner({ provider }: { provider: EthereumProvider | nu
             wallet-owned arkiv data
           </p>
           <h2 className="mt-2 text-2xl font-semibold md:text-3xl">
-            El agente tambien puede escribir como owner.
+            The agent can also write as owner.
           </h2>
           <p className="mt-4 max-w-xl text-sm leading-relaxed text-graphite-dark md:text-base">
-            El runtime backend sigue escribiendo evidencia operativa. Esta accion separada crea
-            un `agent_profile` desde la wallet conectada, con el mismo `PROJECT_ATTRIBUTE`.
-            En Arkiv, esa entidad queda con `$owner` y `$creator` del usuario.
+            The backend runtime keeps writing operational evidence. This
+            separate action creates an `agent_profile` from the connected
+            wallet, using the same `PROJECT_ATTRIBUTE`. On Arkiv, that entity
+            keeps the user's `$owner` and `$creator`.
           </p>
         </div>
 

@@ -42,15 +42,15 @@ export function TraceDemo() {
       className="relative grid gap-6 lg:grid-cols-[1fr_64px_1fr]"
     >
       <motion.div variants={leftSlide}>
-        <TraceCard label="// request entrante" theme="light">
+        <TraceCard label="// incoming request" theme="light">
           <KvLine k="POST" v="/v1/messages" />
-          <KvLine k="x-api-key" v="sk-ant-…" />
+          <KvLine k="x-api-key" v="sk-ant-â€¦" />
           <KvLine k="anthropic-version" v="2023-06-01" />
           <pre className="mt-4 break-words bg-paper-soft/60 p-3 font-mono text-xs leading-relaxed text-ink">
             {`{ "model": "claude-sonnet-4-6",
   "messages": [{
     "role": "user",
-    "content": "ayudame con AKIAIOSFODNN7EXAMPLE"
+    "content": "help me with AKIAIOSFODNN7EXAMPLE"
   }] }`}
           </pre>
         </TraceCard>
@@ -59,23 +59,21 @@ export function TraceDemo() {
       <Connector reduce={!!reduce} />
 
       <motion.div variants={rightSlide}>
-        <TraceCard label="// respuesta sintética · BLOCK" theme="dark">
-          <KvLine k="x-team22-trace-id" v="01HXYZK…" dark />
+        <TraceCard label="// synthetic response / BLOCK" theme="dark">
+          <KvLine k="x-team22-trace-id" v="01HXYZKâ€¦" dark />
           <KvLine k="x-team22-action" v="BLOCK" dark />
           <KvLine k="stop_reason" v="team22_blocked" dark />
           <div className="mt-4 break-words border border-graphite-dark p-3 font-mono text-xs leading-relaxed text-paper">
-            Tu prompt se alejó de la política{" "}
+            Your prompt moved outside policy{" "}
             <span className="text-paper underline underline-offset-2">
               aws-access-key
             </span>
-            : detectamos un patrón de AWS Secret Access Key. Para trabajar con
-            credenciales reales dentro del marco de la org, abrí un ticket con
-            tu admin.
+            : we detected an AWS Secret Access Key pattern. To work with real credentials inside the org process, open a ticket with your admin.
           </div>
           <div className="mt-3 flex items-center gap-3 font-mono text-[11px] text-graphite">
-            <span>// total · 9ms</span>
+            <span>// total / 9ms</span>
             <span className="hairline h-3 w-px" />
-            <span>// upstream · skipped</span>
+            <span>// upstream / skipped</span>
           </div>
         </TraceCard>
       </motion.div>
@@ -117,7 +115,7 @@ function Connector({ reduce }: { reduce: boolean }) {
       aria-hidden
       className="pointer-events-none relative flex items-center justify-center"
     >
-      {/* Horizontal track — desktop */}
+      {/* Horizontal track â€” desktop */}
       <svg
         className="hidden h-3 w-full lg:block"
         viewBox="0 0 100 12"
@@ -162,7 +160,7 @@ function Connector({ reduce }: { reduce: boolean }) {
         />
       </svg>
 
-      {/* Vertical track — mobile */}
+      {/* Vertical track â€” mobile */}
       <svg
         className="block h-12 w-3 lg:hidden"
         viewBox="0 0 12 100"

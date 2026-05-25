@@ -1,4 +1,4 @@
-﻿// Install terminal: command lives at the top with a copy-to-clipboard
+// Install terminal: command lives at the top with a copy-to-clipboard
 // button; the output below typewrites itself once the terminal scrolls
 // into view. Reduced-motion users get the full output immediately.
 /* eslint-disable react/jsx-no-comment-textnodes */
@@ -9,26 +9,26 @@ import { useInView, useReducedMotion } from "framer-motion";
 
 const COMMAND = "npx ArkivGate setup";
 
-const LOG = `  â–Ž arkivgate Â· login
-  â””â”€ app  https://arkivgate.app
+const LOG = `  > arkivgate / login
+  - app  https://arkivgate.app
 
-  Â· iniciando device flowâ€¦  ok
+  / starting device flow...  ok
 
-  AbrÃ­ el browser y aprobÃ¡:
+  Open the browser and approve:
       https://arkivgate.app/cli/connect?code=KXZ2-RZ96
 
-  Â· esperando aprobaciÃ³nâ€¦  ok
+  / waiting for approval...  ok
 
-  â–Ž arkivgate Â· setup
-  â”œâ”€ proxy   https://proxy.arkivgate.app
-  â”œâ”€ shell   zsh
-  â”œâ”€ rc      ~/.zshrc
-  â””â”€ member  jaime@acme.com Â· org=acme
+  > arkivgate / setup
+  - proxy   https://proxy.arkivgate.app
+  - shell   zsh
+  - rc      ~/.zshrc
+  - member  jaime@acme.com / org=acme
 
-  Â· agreguÃ© la export a ~/.zshrc
-  Â· verificando proxyâ€¦  ok
+  / added the export to ~/.zshrc
+  / verifying proxy...  ok
 
-  Listo. ReabrÃ­ tu terminal y usÃ¡ Claude Code igual que siempre.`;
+  Done. Reopen your terminal and use Claude Code normally.`;
 
 const CHAR_MS = 8;
 
@@ -75,7 +75,7 @@ export function InstallTerminal() {
     >
       <div className="flex items-center justify-between border-b border-paper/10 px-5 py-3 font-mono text-[11px] uppercase tracking-wider text-paper/55">
         <span>// terminal</span>
-        <span className="hidden md:inline">// onboarding Â· ~ 30 segundos</span>
+        <span className="hidden md:inline">// onboarding / ~30 seconds</span>
       </div>
       <div className="px-6 py-7 font-mono text-sm leading-relaxed text-paper md:px-10 md:py-9 md:text-base">
         <div className="flex items-center justify-between gap-3">
@@ -86,12 +86,12 @@ export function InstallTerminal() {
           <button
             type="button"
             onClick={copy}
-            aria-label="copiar comando"
+            aria-label="copy command"
             className="inline-flex items-center gap-2 border border-paper/20 px-2.5 py-1 font-mono text-[11px] uppercase tracking-wider text-paper/65 transition-colors hover:border-paper/55 hover:text-paper"
             style={{ borderRadius: "var(--radius)" }}
           >
             <span aria-hidden className="block h-1.5 w-1.5 bg-paper/50" />
-            {copied ? "copiado âœ“" : "copiar"}
+            {copied ? "copied" : "copy"}
           </button>
         </div>
         <pre className="mt-5 whitespace-pre-wrap text-[13px] leading-relaxed text-paper/75 md:text-sm">
@@ -104,4 +104,3 @@ export function InstallTerminal() {
     </div>
   );
 }
-
