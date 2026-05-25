@@ -10,6 +10,7 @@ import { usePathname } from "next/navigation";
 export const NAV_ITEMS = [
   { href: "/admin", label: "inicio", caption: "panel general", exact: true },
   { href: "/admin/events", label: "eventos", caption: "lo que pasa" },
+  { href: "/admin/api-keys", label: "api keys", caption: "integrar clientes" },
   { href: "/admin/rules", label: "reglas", caption: "qué controla" },
   { href: "/admin/arkiv", label: "arkiv", caption: "evidencia on-chain" },
   { href: "/admin/suggestions", label: "sugerencias", caption: "por aprobar" },
