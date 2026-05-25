@@ -10,6 +10,7 @@ ArkivGate now has a demo x402 rail across the project:
 - The Python interceptor can protect the real attributed runtime path, `POST /cli/<token>/v1/messages`, when `X402_DEMO_ENABLED=true`.
 - Paid executions run through two policy lanes: payment intent policy and prompt policy. Both produce `PASS`, `WARN`, `REDACT`, or `BLOCK`; the final decision uses the highest severity.
 - Payment policy examples: moving 100% of wallet balance blocks, moving over 50% above recent behavior warns, exceeding a per-transaction cap redacts/caps the amount.
+- The x402 flow now also includes an Arkiv threat-intel lane inspired by community threat registries: the recipient address is checked against reported malicious addresses before execution. A confirmed approval-drain recipient blocks even if the payment amount is small.
 - Executions are bridged into Arkiv as connected evidence: paying agent entity, payment review, prompt review, policy decision, and transaction links.
 - The public home now includes an Arkiv Evidence Browser that queries by project, entity type, action, severity, agent key, risk score, and time window, then shows relationship keys and retention per entity.
 - Wallet identity is now part of the public flow: Reown AppKit / WalletConnect can connect an EVM wallet on Arkiv Braga, and the playground uses that address as the paying agent key for x402 evidence.
@@ -39,6 +40,23 @@ The live demo exposes Arkiv as a queryable product layer, not only as explorer l
 - Theme filters for `action`, `severity`, `agentKey`, `riskScore >=`, and `createdAt` windows.
 - Relationship traversal through `agentEntityKey`, `paymentReviewKey`, `promptReviewKey`, and `policyKey`.
 - Differentiated retention for prompt, payment, agent, policy, and decision entities.
+
+### Threat Intelligence Layer
+
+ArkivGate borrows the strongest ClearShield idea without changing product focus:
+community threat intelligence becomes another runtime policy lane for paid agents.
+
+Current demo flow:
+
+- The x402 playground accepts a recipient address.
+- The policy engine checks the recipient against a small ArkivGate threat registry.
+- A flagged recipient produces `WARN` or `BLOCK` using the same `PASS/WARN/REDACT/BLOCK` vocabulary as prompt and payment policy.
+- When flagged, the Arkiv bridge writes:
+  - `threat_report` with typed attributes: `recipientAddress`, `threatType`, `severityScore`, `reportCount`, `confirmationCount`, `createdAt`.
+  - `threat_confirmation` linked by `threatReportKey`.
+  - `payment_review` linked back to the threat report via `threatReportKey`.
+
+Both threat entity types use the same `PROJECT_ATTRIBUTE` and a 90-day TTL, matching the idea that unconfirmed risk reports should decay instead of living forever.
 
 ### Wallet Ownership Demo
 

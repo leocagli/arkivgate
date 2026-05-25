@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 
 import { evaluatePaymentPolicy, worstVerdict } from "./payment-policy";
+import { DEMO_THREAT_ADDRESS } from "./threat-intel";
 
 assert.equal(
   evaluatePaymentPolicy({
@@ -44,6 +45,17 @@ const redacted = evaluatePaymentPolicy({
 });
 assert.equal(redacted.verdict, "REDACT");
 assert.equal(redacted.adjustedTransferUsd, 30);
+
+const threatBlocked = evaluatePaymentPolicy({
+  walletBalanceUsd: 100,
+  transferUsd: 5,
+  recentMaxTransferUsd: 20,
+  perTxLimitUsd: 40,
+  recipientRisk: "low",
+  recipientAddress: DEMO_THREAT_ADDRESS,
+});
+assert.equal(threatBlocked.verdict, "BLOCK");
+assert.equal(threatBlocked.threatIntel.isFlagged, true);
 
 assert.equal(worstVerdict(["PASS", "WARN"]), "WARN");
 assert.equal(worstVerdict(["PASS", "REDACT", "WARN"]), "REDACT");

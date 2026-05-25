@@ -152,11 +152,16 @@ que las entidades backend, tambien lleva `PROJECT_ATTRIBUTE`.
 El playground tiene dos policy lanes con el mismo vocabulario:
 
 - `x402 payment policy`: evalua balance, monto a transferir, historial, cap por transaccion y riesgo del recipient.
+- `Arkiv threat intel`: evalua si el recipient esta reportado como contrato o wallet maliciosa.
 - `prompt policy`: evalua el contenido del prompt con las reglas `PASS`, `BLOCK`, `REDACT`, `WARN`.
 
 La decision final usa la peor severidad entre ambas. No mueve fondos reales.
 Sirve para validar el producto completo: agente paga, fondos y prompt pasan por
-politica, Arkiv registra.
+politica, recipient pasa por threat intelligence, Arkiv registra.
+
+Cuando el recipient esta reportado, el bridge persiste `threat_report` y
+`threat_confirmation` con TTL de 90 dias, y los relaciona desde `payment_review`
+mediante `threatReportKey`.
 
 ## Deploy
 

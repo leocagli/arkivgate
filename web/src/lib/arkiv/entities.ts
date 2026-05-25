@@ -110,6 +110,13 @@ export function buildPaymentReviewEntity(
     recentMaxTransferUsd?: number;
     perTxLimitUsd?: number;
     recipientRisk?: "low" | "unknown" | "high";
+    recipientAddress?: string;
+    threatReportKey?: string;
+    threatConfirmationKey?: string;
+    threatReportCount?: number;
+    threatConfirmationCount?: number;
+    threatSeverityScore?: number;
+    threatType?: string;
   },
 ) {
   const createdAt = input.createdAt ?? Date.now();
@@ -128,6 +135,13 @@ export function buildPaymentReviewEntity(
       recentMaxTransferUsd: input.recentMaxTransferUsd,
       perTxLimitUsd: input.perTxLimitUsd,
       recipientRisk: input.recipientRisk,
+      recipientAddress: input.recipientAddress,
+      threatReportKey: input.threatReportKey,
+      threatConfirmationKey: input.threatConfirmationKey,
+      threatReportCount: input.threatReportCount,
+      threatConfirmationCount: input.threatConfirmationCount,
+      threatSeverityScore: input.threatSeverityScore,
+      threatType: input.threatType,
     }),
     contentType: "application/json",
     attributes: [
@@ -140,9 +154,90 @@ export function buildPaymentReviewEntity(
       { key: "action", value: input.verdict },
       { key: "severity", value: input.severity },
       { key: "riskScore", value: input.riskScore },
+      ...(input.recipientAddress ? [{ key: "recipientAddress", value: input.recipientAddress }] : []),
+      ...(input.threatReportKey ? [{ key: "threatReportKey", value: input.threatReportKey }] : []),
+      ...(typeof input.threatSeverityScore === "number"
+        ? [{ key: "threatSeverityScore", value: input.threatSeverityScore }]
+        : []),
       { key: "createdAt", value: createdAt },
     ],
     expiresIn: EXPIRATION.paymentReview,
+  };
+}
+
+export function buildThreatReportEntity(
+  input: BaseEntityInput & {
+    recipientAddress: string;
+    threatType: string;
+    severityScore: number;
+    reportCount: number;
+    confirmationCount: number;
+    totalAmountLostUsd: number;
+    aiSummary: string;
+    matchedReportId?: string;
+  },
+) {
+  const createdAt = input.createdAt ?? Date.now();
+  const recipientAddress = input.recipientAddress.toLowerCase();
+
+  return {
+    payload: jsonToPayload({
+      recipientAddress,
+      threatType: input.threatType,
+      severityScore: input.severityScore,
+      reportCount: input.reportCount,
+      confirmationCount: input.confirmationCount,
+      totalAmountLostUsd: input.totalAmountLostUsd,
+      aiSummary: input.aiSummary,
+      matchedReportId: input.matchedReportId,
+    }),
+    contentType: "application/json",
+    attributes: [
+      PROJECT_ATTRIBUTE,
+      { key: "entityType", value: ENTITY_TYPE.threatReport },
+      { key: "orgKey", value: input.orgKey },
+      { key: "recipientAddress", value: recipientAddress },
+      { key: "threatType", value: input.threatType },
+      { key: "severityScore", value: input.severityScore },
+      { key: "reportCount", value: input.reportCount },
+      { key: "confirmationCount", value: input.confirmationCount },
+      { key: "createdAt", value: createdAt },
+    ],
+    expiresIn: EXPIRATION.threatReport,
+  };
+}
+
+export function buildThreatConfirmationEntity(
+  input: BaseEntityInput & {
+    threatReportKey: string;
+    recipientAddress: string;
+    confirmerAddress: string;
+    confidence: "low" | "medium" | "high";
+  },
+) {
+  const createdAt = input.createdAt ?? Date.now();
+  const recipientAddress = input.recipientAddress.toLowerCase();
+  const confirmerAddress = input.confirmerAddress.toLowerCase();
+
+  return {
+    payload: jsonToPayload({
+      threatReportKey: input.threatReportKey,
+      recipientAddress,
+      confirmerAddress,
+      confidence: input.confidence,
+    }),
+    contentType: "application/json",
+    attributes: [
+      PROJECT_ATTRIBUTE,
+      { key: "entityType", value: ENTITY_TYPE.threatConfirmation },
+      { key: "orgKey", value: input.orgKey },
+      { key: "threatReportKey", value: input.threatReportKey },
+      { key: "recipientAddress", value: recipientAddress },
+      { key: "confirmerAddress", value: confirmerAddress },
+      { key: "confidence", value: input.confidence },
+      { key: "createdAt", value: createdAt },
+    ],
+    expiresIn: EXPIRATION.threatConfirmation,
   };
 }
 

@@ -6,6 +6,8 @@ import {
   buildPolicyDecisionEntity,
   buildPolicyEntity,
   buildPromptReviewEntity,
+  buildThreatConfirmationEntity,
+  buildThreatReportEntity,
 } from "./entities";
 import { evaluatePromptRisk, promptHash, redactPrompt } from "./mappers";
 import {
@@ -45,6 +47,18 @@ export type PersistArkivAuditInput = {
     recentMaxTransferUsd?: number;
     perTxLimitUsd?: number;
     recipientRisk?: "low" | "unknown" | "high";
+    recipientAddress?: string;
+    threatIntel?: {
+      isFlagged: boolean;
+      confidence: "low" | "medium" | "high";
+      reportCount: number;
+      confirmationCount: number;
+      maxSeverity: number;
+      dominantThreatType: string;
+      totalAmountLostUsd: number;
+      matchedReportId?: string;
+      aiSummary: string;
+    };
   };
   latencyMs?: number;
   createdAt?: number;
@@ -56,20 +70,28 @@ export type PersistArkivAuditResult = {
   policyDecisionKey: string;
   agentEntityKey: string;
   paymentReviewKey?: string;
+  threatReportKey?: string;
+  threatConfirmationKey?: string;
   policyTxHash?: string;
   agentTxHash: string;
   paymentReviewTxHash?: string;
+  threatReportTxHash?: string;
+  threatConfirmationTxHash?: string;
   promptReviewTxHash: string;
   policyDecisionTxHash: string;
   explorers: {
     policy?: string;
     agent: string;
     paymentReview?: string;
+    threatReport?: string;
+    threatConfirmation?: string;
     promptReview: string;
     policyDecision: string;
     policyTx?: string;
     agentTx: string;
     paymentReviewTx?: string;
+    threatReportTx?: string;
+    threatConfirmationTx?: string;
     promptReviewTx: string;
     policyDecisionTx: string;
   };
@@ -244,6 +266,36 @@ export async function persistArkivPromptAudit(input: PersistArkivAuditInput): Pr
       createdAt: input.createdAt,
     }),
   );
+  const threatReport =
+    input.paymentPolicy?.recipientAddress && input.paymentPolicy.threatIntel?.isFlagged
+      ? await createEntityWithRetry(
+          buildThreatReportEntity({
+            orgKey: input.orgKey,
+            recipientAddress: input.paymentPolicy.recipientAddress,
+            threatType: input.paymentPolicy.threatIntel.dominantThreatType,
+            severityScore: input.paymentPolicy.threatIntel.maxSeverity,
+            reportCount: input.paymentPolicy.threatIntel.reportCount,
+            confirmationCount: input.paymentPolicy.threatIntel.confirmationCount,
+            totalAmountLostUsd: input.paymentPolicy.threatIntel.totalAmountLostUsd,
+            aiSummary: input.paymentPolicy.threatIntel.aiSummary,
+            matchedReportId: input.paymentPolicy.threatIntel.matchedReportId,
+            createdAt: input.createdAt,
+          }),
+        )
+      : null;
+  const threatConfirmation =
+    threatReport && input.paymentPolicy?.recipientAddress && input.paymentPolicy.threatIntel
+      ? await createEntityWithRetry(
+          buildThreatConfirmationEntity({
+            orgKey: input.orgKey,
+            threatReportKey: threatReport.entityKey,
+            recipientAddress: input.paymentPolicy.recipientAddress,
+            confirmerAddress: agentKey,
+            confidence: input.paymentPolicy.threatIntel.confidence,
+            createdAt: input.createdAt,
+          }),
+        )
+      : null;
   const paymentReview = input.paymentPolicy
     ? await createEntityWithRetry(
         buildPaymentReviewEntity({
@@ -262,6 +314,13 @@ export async function persistArkivPromptAudit(input: PersistArkivAuditInput): Pr
           recentMaxTransferUsd: input.paymentPolicy.recentMaxTransferUsd,
           perTxLimitUsd: input.paymentPolicy.perTxLimitUsd,
           recipientRisk: input.paymentPolicy.recipientRisk,
+          recipientAddress: input.paymentPolicy.recipientAddress,
+          threatReportKey: threatReport?.entityKey,
+          threatConfirmationKey: threatConfirmation?.entityKey,
+          threatReportCount: input.paymentPolicy.threatIntel?.reportCount,
+          threatConfirmationCount: input.paymentPolicy.threatIntel?.confirmationCount,
+          threatSeverityScore: input.paymentPolicy.threatIntel?.maxSeverity,
+          threatType: input.paymentPolicy.threatIntel?.dominantThreatType,
           createdAt: input.createdAt,
         }),
       )
@@ -304,22 +363,30 @@ export async function persistArkivPromptAudit(input: PersistArkivAuditInput): Pr
     policyKey: policy.key,
     agentEntityKey: agent.entityKey,
     paymentReviewKey: paymentReview?.entityKey,
+    threatReportKey: threatReport?.entityKey,
+    threatConfirmationKey: threatConfirmation?.entityKey,
     promptReviewKey: promptReview.entityKey,
     policyDecisionKey: policyDecision.entityKey,
     policyTxHash: policy.txHash,
     agentTxHash: agent.txHash,
     paymentReviewTxHash: paymentReview?.txHash,
+    threatReportTxHash: threatReport?.txHash,
+    threatConfirmationTxHash: threatConfirmation?.txHash,
     promptReviewTxHash: promptReview.txHash,
     policyDecisionTxHash: policyDecision.txHash,
     explorers: {
       policy: policy.explorer,
       agent: entityExplorerUrl(agent.entityKey),
       paymentReview: paymentReview ? entityExplorerUrl(paymentReview.entityKey) : undefined,
+      threatReport: threatReport ? entityExplorerUrl(threatReport.entityKey) : undefined,
+      threatConfirmation: threatConfirmation ? entityExplorerUrl(threatConfirmation.entityKey) : undefined,
       promptReview: entityExplorerUrl(promptReview.entityKey),
       policyDecision: entityExplorerUrl(policyDecision.entityKey),
       policyTx: policy.txExplorer,
       agentTx: transactionExplorerUrl(agent.txHash),
       paymentReviewTx: paymentReview ? transactionExplorerUrl(paymentReview.txHash) : undefined,
+      threatReportTx: threatReport ? transactionExplorerUrl(threatReport.txHash) : undefined,
+      threatConfirmationTx: threatConfirmation ? transactionExplorerUrl(threatConfirmation.txHash) : undefined,
       promptReviewTx: transactionExplorerUrl(promptReview.txHash),
       policyDecisionTx: transactionExplorerUrl(policyDecision.txHash),
     },

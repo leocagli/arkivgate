@@ -9,6 +9,7 @@ import {
   type PaymentPolicyResult,
   type PolicyVerdict,
 } from "@/lib/payment-policy";
+import { DEMO_THREAT_ADDRESS } from "@/lib/threat-intel";
 import { buildDemoPaymentSignatureWithIntent } from "@/lib/x402-demo";
 import { shortWalletAddress } from "@/lib/wallet/identity";
 import { useWalletIdentity } from "./wallet-identity-button";
@@ -116,6 +117,7 @@ export function PolicyPlayground() {
   const [recentMaxTransferUsd, setRecentMaxTransferUsd] = useState(20);
   const [perTxLimitUsd, setPerTxLimitUsd] = useState(40);
   const [recipientRisk, setRecipientRisk] = useState<PaymentIntent["recipientRisk"]>("low");
+  const [recipientAddress, setRecipientAddress] = useState(DEMO_THREAT_ADDRESS);
   const [x402Phase, setX402Phase] = useState<X402Phase>("idle");
   const [runningLiveTest, setRunningLiveTest] = useState(false);
   const [attemptStatus, setAttemptStatus] = useState<{
@@ -143,6 +145,10 @@ export function PolicyPlayground() {
       agentTxHash?: string;
       paymentReviewKey?: string;
       paymentReviewTxHash?: string;
+      threatReportKey?: string;
+      threatReportTxHash?: string;
+      threatConfirmationKey?: string;
+      threatConfirmationTxHash?: string;
       promptReviewKey?: string;
       promptReviewTxHash?: string;
       policyDecisionKey?: string;
@@ -151,11 +157,15 @@ export function PolicyPlayground() {
         policy?: string;
         agent: string;
         paymentReview?: string;
+        threatReport?: string;
+        threatConfirmation?: string;
         promptReview: string;
         policyDecision: string;
         policyTx?: string;
         agentTx: string;
         paymentReviewTx?: string;
+        threatReportTx?: string;
+        threatConfirmationTx?: string;
         promptReviewTx: string;
         policyDecisionTx: string;
       };
@@ -200,8 +210,9 @@ export function PolicyPlayground() {
         recentMaxTransferUsd,
         perTxLimitUsd,
         recipientRisk,
+        recipientAddress,
       }),
-    [perTxLimitUsd, recentMaxTransferUsd, recipientRisk, transferUsd, walletBalanceUsd],
+    [perTxLimitUsd, recentMaxTransferUsd, recipientAddress, recipientRisk, transferUsd, walletBalanceUsd],
   );
 
   const paymentPreview = useMemo(() => evaluatePaymentPolicy(paymentIntent), [paymentIntent]);
@@ -641,7 +652,7 @@ export function PolicyPlayground() {
           <RailMetric label="settlement" value="demo" />
         </div>
 
-        <div className="mb-4 grid gap-3 md:grid-cols-2">
+        <div className="mb-4 grid gap-3 md:grid-cols-3">
           <PolicyLane
             title="x402 payment policy"
             verdict={paymentPreview.verdict}
@@ -657,6 +668,16 @@ export function PolicyPlayground() {
             verdict={result.action}
             reason={result.matches.length ? result.matches.map((rule) => rule.label).join(", ") : "prompt is within policy"}
             detail={`${result.matches.length} matched rules`}
+          />
+          <PolicyLane
+            title="Arkiv threat intel"
+            verdict={paymentPreview.threatIntel.verdict}
+            reason={paymentPreview.threatIntel.aiSummary}
+            detail={
+              paymentPreview.threatIntel.isFlagged
+                ? `${paymentPreview.threatIntel.confirmationCount} confirmations / severity ${paymentPreview.threatIntel.maxSeverity}`
+                : "no active report"
+            }
           />
         </div>
 
@@ -679,6 +700,30 @@ export function PolicyPlayground() {
             </select>
           </label>
         </div>
+
+        <label className="mb-3 block text-xs text-graphite-dark">
+          Recipient address
+          <div className="mt-1.5 flex gap-2">
+            <input
+              value={recipientAddress}
+              onChange={(event) => setRecipientAddress(event.target.value)}
+              placeholder="0x..."
+              className="min-w-0 flex-1 border border-[#1b5a65]/25 bg-white p-2 font-mono text-xs text-ink outline-none focus:border-[#1b5a65]"
+              style={{ borderRadius: "6px" }}
+            />
+            <button
+              type="button"
+              onClick={() => setRecipientAddress(DEMO_THREAT_ADDRESS)}
+              className="border border-[#1b5a65]/25 bg-white px-3 font-mono text-[10px] uppercase tracking-[0.12em] text-[#1b5a65]"
+              style={{ borderRadius: "6px" }}
+            >
+              flagged
+            </button>
+          </div>
+          <span className="mt-1 block font-mono text-[10px] uppercase tracking-[0.12em] text-graphite">
+            checked against ArkivGate threat reports before execution
+          </span>
+        </label>
 
         <label className="mb-3 block text-xs text-graphite-dark">
           Paying agent key
@@ -743,7 +788,7 @@ export function PolicyPlayground() {
               ) : null}
             </div>
 
-            <div className="grid gap-3 md:grid-cols-3">
+            <div className="grid gap-3 md:grid-cols-4">
               {liveResult.paymentPolicy ? (
                 <PolicyLane
                   title="x402 payment policy"
@@ -753,6 +798,18 @@ export function PolicyPlayground() {
                     liveResult.paymentPolicy.adjustedTransferUsd
                       ? `capped to $${liveResult.paymentPolicy.adjustedTransferUsd}`
                       : `risk ${liveResult.paymentPolicy.riskScore}`
+                  }
+                />
+              ) : null}
+              {liveResult.paymentPolicy ? (
+                <PolicyLane
+                  title="Arkiv threat intel"
+                  verdict={liveResult.paymentPolicy.threatIntel.verdict}
+                  reason={liveResult.paymentPolicy.threatIntel.aiSummary}
+                  detail={
+                    liveResult.paymentPolicy.threatIntel.isFlagged
+                      ? `${liveResult.paymentPolicy.threatIntel.confirmationCount} confirmations`
+                      : "no active report"
                   }
                 />
               ) : null}
@@ -795,6 +852,10 @@ export function PolicyPlayground() {
                 <p>agent tx: {liveResult.arkiv.agentTxHash}</p>
                 {liveResult.arkiv.paymentReviewKey ? <p>payment_review: {liveResult.arkiv.paymentReviewKey}</p> : null}
                 {liveResult.arkiv.paymentReviewTxHash ? <p>payment_review tx: {liveResult.arkiv.paymentReviewTxHash}</p> : null}
+                {liveResult.arkiv.threatReportKey ? <p>threat_report: {liveResult.arkiv.threatReportKey}</p> : null}
+                {liveResult.arkiv.threatReportTxHash ? <p>threat_report tx: {liveResult.arkiv.threatReportTxHash}</p> : null}
+                {liveResult.arkiv.threatConfirmationKey ? <p>threat_confirmation: {liveResult.arkiv.threatConfirmationKey}</p> : null}
+                {liveResult.arkiv.threatConfirmationTxHash ? <p>threat_confirmation tx: {liveResult.arkiv.threatConfirmationTxHash}</p> : null}
                 <p>policy: {liveResult.arkiv.policyKey}</p>
                 {liveResult.arkiv.policyTxHash ? <p>policy tx: {liveResult.arkiv.policyTxHash}</p> : null}
                 <p>prompt_review: {liveResult.arkiv.promptReviewKey}</p>

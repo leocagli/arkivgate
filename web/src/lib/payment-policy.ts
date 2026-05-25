@@ -1,4 +1,7 @@
-export type PolicyVerdict = "PASS" | "WARN" | "REDACT" | "BLOCK";
+import { evaluateThreatIntel, type ThreatIntelResult } from "@/lib/threat-intel";
+import type { PolicyVerdict } from "@/lib/payment-policy-types";
+
+export type { PolicyVerdict } from "@/lib/payment-policy-types";
 
 export type PaymentIntent = {
   walletBalanceUsd: number;
@@ -6,6 +9,7 @@ export type PaymentIntent = {
   recentMaxTransferUsd: number;
   perTxLimitUsd: number;
   recipientRisk: "low" | "unknown" | "high";
+  recipientAddress?: string;
 };
 
 export type PaymentPolicyResult = {
@@ -15,6 +19,7 @@ export type PaymentPolicyResult = {
   reason: string;
   matchedRules: string[];
   intent: PaymentIntent;
+  threatIntel: ThreatIntelResult;
   adjustedTransferUsd?: number;
 };
 
@@ -25,6 +30,7 @@ export function normalizePaymentIntent(input?: Partial<PaymentIntent> | null): P
     recentMaxTransferUsd: clampMoney(input?.recentMaxTransferUsd, 20),
     perTxLimitUsd: clampMoney(input?.perTxLimitUsd, 40),
     recipientRisk: input?.recipientRisk === "high" || input?.recipientRisk === "unknown" ? input.recipientRisk : "low",
+    recipientAddress: typeof input?.recipientAddress === "string" ? input.recipientAddress.trim() : "",
   };
 }
 
@@ -33,7 +39,21 @@ export function evaluatePaymentPolicy(input?: Partial<PaymentIntent> | null): Pa
   const balance = Math.max(intent.walletBalanceUsd, 0.01);
   const perTxLimit = Math.max(intent.perTxLimitUsd, 0.01);
   const ratio = intent.transferUsd / balance;
+  const threatIntel = evaluateThreatIntel(intent.recipientAddress);
   const matchedRules: string[] = [];
+
+  if (threatIntel.verdict === "BLOCK") {
+    matchedRules.push(...threatIntel.matchedRules);
+    return {
+      verdict: "BLOCK",
+      severity: "critical",
+      riskScore: Math.max(92, threatIntel.maxSeverity * 10),
+      reason: "recipient is flagged by Arkiv threat intelligence",
+      matchedRules,
+      intent,
+      threatIntel,
+    };
+  }
 
   if (intent.recipientRisk === "high") {
     matchedRules.push("high-risk-recipient");
@@ -44,6 +64,7 @@ export function evaluatePaymentPolicy(input?: Partial<PaymentIntent> | null): Pa
       reason: "recipient is marked high risk",
       matchedRules,
       intent,
+      threatIntel,
     };
   }
 
@@ -56,6 +77,7 @@ export function evaluatePaymentPolicy(input?: Partial<PaymentIntent> | null): Pa
       reason: "transfer attempts to move 100% or more of wallet balance",
       matchedRules,
       intent,
+      threatIntel,
     };
   }
 
@@ -68,6 +90,20 @@ export function evaluatePaymentPolicy(input?: Partial<PaymentIntent> | null): Pa
       reason: "transfer is over 50% of balance and above the wallet's recent max",
       matchedRules,
       intent,
+      threatIntel,
+    };
+  }
+
+  if (threatIntel.verdict === "WARN") {
+    matchedRules.push(...threatIntel.matchedRules);
+    return {
+      verdict: "WARN",
+      severity: "medium",
+      riskScore: Math.max(55, threatIntel.maxSeverity * 10),
+      reason: "recipient has unresolved Arkiv threat-intel reports",
+      matchedRules,
+      intent,
+      threatIntel,
     };
   }
 
@@ -80,6 +116,7 @@ export function evaluatePaymentPolicy(input?: Partial<PaymentIntent> | null): Pa
       reason: "recipient is new or unknown for a material transfer",
       matchedRules,
       intent,
+      threatIntel,
     };
   }
 
@@ -92,6 +129,7 @@ export function evaluatePaymentPolicy(input?: Partial<PaymentIntent> | null): Pa
       reason: "transfer exceeds configured per-transaction cap; amount is capped before execution",
       matchedRules,
       intent,
+      threatIntel,
       adjustedTransferUsd: perTxLimit,
     };
   }
@@ -103,6 +141,7 @@ export function evaluatePaymentPolicy(input?: Partial<PaymentIntent> | null): Pa
     reason: "payment intent is within balance, recipient and transfer-size policy",
     matchedRules,
     intent,
+    threatIntel,
   };
 }
 

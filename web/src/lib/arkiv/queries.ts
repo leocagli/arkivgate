@@ -38,6 +38,8 @@ export type EvidenceEntity = {
     paymentReviewKey?: string;
     promptReviewKey?: string;
     policyKey?: string;
+    threatReportKey?: string;
+    threatConfirmationKey?: string;
   };
 };
 
@@ -45,6 +47,8 @@ const ENTITY_RETENTION_DAYS: Partial<Record<EvidenceEntityType, number>> = {
   [ENTITY_TYPE.agent]: Math.round(EXPIRATION.agent / 86_400),
   [ENTITY_TYPE.agentProfile]: Math.round(EXPIRATION.agentProfile / 86_400),
   [ENTITY_TYPE.paymentReview]: Math.round(EXPIRATION.paymentReview / 86_400),
+  [ENTITY_TYPE.threatReport]: Math.round(EXPIRATION.threatReport / 86_400),
+  [ENTITY_TYPE.threatConfirmation]: Math.round(EXPIRATION.threatConfirmation / 86_400),
   [ENTITY_TYPE.promptReview]: Math.round(EXPIRATION.promptReview / 86_400),
   [ENTITY_TYPE.policyDecision]: Math.round(EXPIRATION.policyDecision / 86_400),
   [ENTITY_TYPE.ruleSuggestion]: Math.round(EXPIRATION.ruleSuggestion / 86_400),
@@ -150,6 +154,12 @@ function extractLinks(
     policyKey:
       stringLink(payloadRecord.policyKey) ??
       stringLink(attrValue(attributes, "policyKey")),
+    threatReportKey:
+      stringLink(payloadRecord.threatReportKey) ??
+      stringLink(attrValue(attributes, "threatReportKey")),
+    threatConfirmationKey:
+      stringLink(payloadRecord.threatConfirmationKey) ??
+      stringLink(attrValue(attributes, "threatConfirmationKey")),
   };
 }
 
