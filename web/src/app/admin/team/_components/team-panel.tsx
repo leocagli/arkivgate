@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 /* eslint-disable react/jsx-no-comment-textnodes */
 
 import { useState, useTransition } from "react";
@@ -70,13 +70,13 @@ export function TeamPanel({
       setToast({ kind: "error", message: data?.error ?? "no se pudo remover" });
       return;
     }
-    setToast({ kind: "success", message: `${member.email} fue removido del equipo` });
+    setToast({ kind: "success", message: `${member.email} was removed from the team` });
     await refresh();
   }
 
   const removeConfig: ConfirmConfig | null = pendingRemove
     ? {
-        title: `Â¿Remover a ${pendingRemove.email}?`,
+        title: `Â¿Remove ${pendingRemove.email}?`,
         body:
           pendingRemove.role === "admin"
             ? "Es admin. Va a perder acceso al back-office y a editar policies. Su atribuciÃ³n en eventos pasados se mantiene."
@@ -109,7 +109,7 @@ export function TeamPanel({
         onCopyFailed={(value) =>
           setToast({
             kind: "error",
-            message: `No pude copiar al portapapeles. SeleccionÃ¡ manualmente: ${value}`,
+            message: `No pude copy al portapapeles. SeleccionÃ¡ manualmente: ${value}`,
           })
         }
       />
@@ -138,7 +138,7 @@ export function TeamPanel({
             className="inline-flex items-center bg-ink px-5 py-2.5 font-mono text-xs uppercase tracking-wider text-paper transition-colors hover:bg-graphite-dark disabled:opacity-60"
             style={{ borderRadius: "var(--radius)" }}
           >
-            {submitting ? "agregandoâ€¦" : "agregar dev"}
+            {submitting ? "addingâ€¦" : "add developer"}
           </button>
         </div>
         {error ? (
@@ -148,9 +148,9 @@ export function TeamPanel({
           </p>
         ) : null}
         <p className="font-mono text-[11px] leading-relaxed text-graphite">
-          // el dev queda &quot;pendiente&quot; hasta que loguee por primera vez.
+          // el dev queda &quot;pending&quot; hasta que loguee por primera vez.
           // mientras tanto, ya puede correr `npx ArkivGate setup` y va a quedar
-          activado al instante.
+          activated instantly.
         </p>
       </form>
 
@@ -165,7 +165,7 @@ export function TeamPanel({
         />
         <MemberList
           title="devs"
-          subtitle={`${devs.length} ${devs.length === 1 ? "invitado" : "invitados"}, ${devs.filter((d) => d.linkedAt).length} activos`}
+          subtitle={`${devs.length} ${devs.length === 1 ? "invitado" : "invitados"}, ${devs.filter((d) => d.linkedAt).length} actives`}
           members={devs}
           currentEmail={currentEmail}
           onRemove={handleRemove}
@@ -207,7 +207,7 @@ function MemberList({
             </span>
             <p className="text-sm leading-relaxed">
               InvitÃ¡ un dev por email arriba para que aparezca acÃ¡. Hasta su
-              primer login con Google queda en estado pendiente.
+              primer login con Google queda en estado pending.
             </p>
           </div>
         ) : (
@@ -232,7 +232,7 @@ function MemberList({
                     </div>
                     <div className="mt-1 flex items-center gap-2 font-mono text-[11px] uppercase tracking-wider text-graphite">
                       <StatusDot active={!!m.linkedAt} />
-                      <span>{m.linkedAt ? "activo Â· sesiÃ³n vinculada" : "pendiente Â· esperando primer login"}</span>
+                      <span>{m.linkedAt ? "active Â· sesiÃ³n vinculada" : "pending Â· waiting for first login"}</span>
                     </div>
                   </div>
                   {!isMe ? (
@@ -304,12 +304,12 @@ function CliInviteCard({
             type="button"
             onClick={() => copy(orgId, "org")}
             className="text-ink underline-offset-2 hover:underline"
-            title="copiar org-id"
+            title="copy org-id"
           >
             {orgId}
           </button>
           {copied === "org" ? (
-            <span className="ml-2 font-semibold text-ink">copiado âœ“</span>
+            <span className="ml-2 font-semibold text-ink">copied âœ“</span>
           ) : null}
         </span>
       </div>
@@ -333,7 +333,7 @@ function CliInviteCard({
           className="shrink-0 bg-ink px-3 py-1.5 font-mono text-[11px] uppercase tracking-wider text-paper transition-colors hover:bg-graphite-dark"
           style={{ borderRadius: "var(--radius)" }}
         >
-          {copied === "command" ? "copiado âœ“" : "copiar"}
+          {copied === "command" ? "copied âœ“" : "copy"}
         </button>
       </div>
 
@@ -344,4 +344,3 @@ function CliInviteCard({
     </div>
   );
 }
-

@@ -36,13 +36,13 @@ export function GdocImportForm() {
       });
       const data = await res.json();
       if (!res.ok) {
-        setError(data.error ?? "Error desconocido");
+        setError(data.error ?? "Unknown error");
       } else {
         setResult(data);
         setUrl("");
       }
     } catch {
-      setError("No se pudo conectar al servidor");
+      setError("Could not connect to the server");
     } finally {
       setLoading(false);
     }
@@ -51,13 +51,12 @@ export function GdocImportForm() {
   return (
     <div className="flex flex-col gap-4">
       <p className="text-sm text-graphite-dark">
-        Pegá la URL de un Google Doc público con las políticas de seguridad de
-        tu empresa. ArkivGate extrae las reglas y las envía a la cola de
-        revisión en{" "}
+        Paste the URL of a public Google Doc with your company's security
+        policies. ArkivGate extracts rules and sends them to the{" "}
         <Link href="/admin/suggestions" className="underline hover:text-ink">
-          sugerencias
-        </Link>
-        .
+          suggestions
+        </Link>{" "}
+        queue for review.
       </p>
 
       <form onSubmit={handleSubmit} className="flex gap-3">
@@ -76,14 +75,14 @@ export function GdocImportForm() {
           className="inline-flex items-center bg-ink px-4 py-2 font-mono text-xs uppercase tracking-wider text-paper transition-colors hover:bg-graphite-dark disabled:opacity-60"
           style={{ borderRadius: "var(--radius)" }}
         >
-          {loading ? "// extrayendo…" : "importar doc"}
+          {loading ? "// extracting..." : "import doc"}
         </button>
       </form>
 
       {error && (
         <p className="inline-flex items-center gap-2 font-mono text-xs font-semibold text-ink">
           <span aria-hidden className="h-3 w-1 bg-ink" />
-          // error · {error}
+          // error / {error}
         </p>
       )}
 
@@ -93,15 +92,14 @@ export function GdocImportForm() {
           style={{ borderRadius: "var(--radius)" }}
         >
           <p className="mb-2 font-mono text-xs text-graphite">
-            // {result.imported} política{result.imported !== 1 ? "s" : ""}{" "}
-            enviada{result.imported !== 1 ? "s" : ""} a la cola
-            {result.truncated ? " · documento truncado a 30 000 caracteres" : ""}
+            // {result.imported} polic{result.imported !== 1 ? "ies" : "y"} sent to the queue
+            {result.truncated ? " / document truncated to 30,000 characters" : ""}
           </p>
           <ul className="mb-3 flex flex-col gap-1">
             {result.suggestions.map((s) => (
               <li key={s.id} className="flex gap-3 font-mono text-xs text-graphite-dark">
                 <span className="text-ink">{s.proposedSlug}</span>
-                <span>·</span>
+                <span>/</span>
                 <span>{s.proposedAction}</span>
               </li>
             ))}
@@ -110,7 +108,7 @@ export function GdocImportForm() {
             href="/admin/suggestions"
             className="font-mono text-xs uppercase tracking-wider text-graphite underline-offset-2 hover:text-ink hover:underline"
           >
-            // revisar en sugerencias →
+            // review in suggestions -&gt;
           </Link>
         </div>
       )}

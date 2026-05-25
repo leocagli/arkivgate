@@ -166,7 +166,7 @@ export function EvidenceBrowser() {
             className="border border-[#1b5a65]/30 bg-white px-3 py-2 font-mono text-[11px] uppercase tracking-[0.12em] text-[#1b5a65] transition-colors hover:bg-[#e1edeb]"
             style={{ borderRadius: "6px" }}
           >
-            abrir query
+            open query
           </a>
         </div>
 

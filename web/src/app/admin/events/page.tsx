@@ -1,4 +1,4 @@
-// /admin/events — feed live de interactions del proxy.
+// /admin/events - live feed of proxy interactions.
 /* eslint-disable react/jsx-no-comment-textnodes */
 import { getAdminSession } from "@/lib/admin-session";
 import { listEvents } from "@/lib/events";
@@ -16,14 +16,14 @@ export default async function EventsPage() {
     <section>
       <header className="mb-8 flex flex-col gap-2">
         <span className="font-mono text-xs uppercase tracking-wider text-graphite">
-          // eventos
+          // events
         </span>
         <h1 className="text-3xl font-semibold tracking-tight md:text-4xl">
-          Lo que pasa en tiempo real.
+          What is happening in real time.
         </h1>
         <p className="max-w-2xl text-graphite-dark">
-          Cada request de Claude Code que pasa por el proxy. Polling cada 3 s,
-          sin reload.
+          Every Claude Code request that passes through the proxy. Polling every
+          3 seconds, without reload.
         </p>
       </header>
       <EventsFeed initialEvents={initialEvents} />

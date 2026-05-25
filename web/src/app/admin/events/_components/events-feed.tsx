@@ -54,7 +54,7 @@ export function EventsFeed({ initialEvents }: { initialEvents: EventDTO[] }) {
         if (cancelled) return;
         setLastPoll(new Date());
         if (data.events.length === 0) return;
-        // Backend devuelve más recientes primero — el más nuevo es events[0].
+        // Backend returns newest first; the newest item is events[0].
         newestRef.current = data.events[0].createdAt;
         setEvents((prev) => {
           const seen = new Set(prev.map((e) => e.id));
@@ -62,7 +62,7 @@ export function EventsFeed({ initialEvents }: { initialEvents: EventDTO[] }) {
           return [...fresh, ...prev].slice(0, 200);
         });
       } catch {
-        // El polling silencioso: si falla un tick lo retomamos en el próximo.
+        // Silent polling: if one tick fails, the next one can recover.
       }
     };
     void tick();
@@ -93,7 +93,7 @@ export function EventsFeed({ initialEvents }: { initialEvents: EventDTO[] }) {
                 <FilterChip
                   active={filter === ""}
                   onClick={() => setFilter("")}
-                  label={`todos · ${total}`}
+                  label={`all / ${total}`}
                 />
                 {ACTIONS.map((a) => (
                   <FilterChip
@@ -115,15 +115,15 @@ export function EventsFeed({ initialEvents }: { initialEvents: EventDTO[] }) {
             className="border border-graphite-dark/30 px-2 py-1 transition-colors hover:border-ink hover:text-ink"
             style={{ borderRadius: "var(--radius)" }}
           >
-            {paused ? "reanudar" : "pausar"}
+            {paused ? "resume" : "pause"}
           </button>
           <span>
             //{" "}
             {paused
-              ? "polling en pausa"
+              ? "polling paused"
               : lastPoll
-                ? `último poll · ${formatTime(lastPoll)}`
-                : "esperando primer poll"}
+                ? `last poll / ${formatTime(lastPoll)}`
+                : "waiting for first poll"}
           </span>
         </div>
       </div>
@@ -134,7 +134,7 @@ export function EventsFeed({ initialEvents }: { initialEvents: EventDTO[] }) {
             className="border border-graphite-dark/20 px-6 py-14 text-center font-mono text-xs text-graphite"
             style={{ borderRadius: "var(--radius)" }}
           >
-            // sin eventos. mandá un request al proxy y va a aparecer acá.
+            // no events yet. Send a request through the proxy and it will appear here.
           </div>
         ) : (
           <ul className="flex flex-col gap-2">
@@ -215,7 +215,7 @@ function EventCard({ event: e }: { event: EventDTO }) {
       </blockquote>
       {userMessage.boilerplateOnly ? (
         <p className="mt-1 pl-3 font-mono text-[10px] uppercase tracking-wider text-graphite">
-          // sólo boilerplate de claude code
+          // claude code boilerplate only
         </p>
       ) : null}
 
@@ -311,7 +311,7 @@ function EventCard({ event: e }: { event: EventDTO }) {
           </div>
         ) : (
           <p className="mt-2 font-mono text-[11px] uppercase tracking-wider text-graphite">
-            sin refs arkiv todavia
+            no arkiv refs yet
           </p>
         )}
       </div>
@@ -331,7 +331,7 @@ function EventCard({ event: e }: { event: EventDTO }) {
             onClick={() => setExpanded((v) => !v)}
             className="mt-1.5 font-mono text-[10px] uppercase tracking-wider text-graphite transition-colors hover:text-ink"
           >
-            // {expanded ? "cerrar contexto" : "expandir contexto completo"}
+            // {expanded ? "close context" : "expand full context"}
           </button>
         )}
       </div>
@@ -377,7 +377,7 @@ function summarizeHits(
   hits: PolicyHitRecord[],
 ): string {
   if (hits.length === 0) {
-    return action === "LOG" ? "sin matches" : action.toLowerCase();
+    return action === "LOG" ? "no matches" : action.toLowerCase();
   }
   const driving = hits.filter((h) => h.action === action);
   const list = (driving.length ? driving : hits).map(
@@ -446,5 +446,5 @@ function describeArkivStatus(event: EventDTO): string {
   if (event.arkivStatus === "pending") return "pending";
   if (event.arkiv?.promptReviewTxHash || event.arkiv?.policyDecisionTxHash) return "ok";
   if (event.arkivError) return "error";
-  return "sin estado";
+  return "no status";
 }

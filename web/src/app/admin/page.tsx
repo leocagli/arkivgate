@@ -1,4 +1,4 @@
-// /admin — composite dashboard. The compliance officer's first stop:
+// /admin - composite dashboard. The compliance officer's first stop:
 // alignment score + 24 h KPIs + last 5 events + pending widgets.
 /* eslint-disable react/jsx-no-comment-textnodes */
 import Link from "next/link";
@@ -11,13 +11,11 @@ import { type Action } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
 
-// Same functional palette as analytics + events feed — keeps the
-// compliance officer's mental model coherent across surfaces.
 const ACTION_TONE: Record<Action, { tile: string; pill: string }> = {
-  BLOCK:  { tile: "text-red-700",    pill: "bg-red-500/10 text-red-700" },
-  REDACT: { tile: "text-amber-700",  pill: "bg-amber-500/10 text-amber-700" },
-  WARN:   { tile: "text-orange-700", pill: "bg-orange-500/10 text-orange-700" },
-  LOG:    { tile: "text-zinc-600",   pill: "bg-zinc-500/10 text-zinc-700" },
+  BLOCK: { tile: "text-red-700", pill: "bg-red-500/10 text-red-700" },
+  REDACT: { tile: "text-amber-700", pill: "bg-amber-500/10 text-amber-700" },
+  WARN: { tile: "text-orange-700", pill: "bg-orange-500/10 text-orange-700" },
+  LOG: { tile: "text-zinc-600", pill: "bg-zinc-500/10 text-zinc-700" },
 };
 
 export default async function AdminHomePage() {
@@ -26,9 +24,6 @@ export default async function AdminHomePage() {
   const { orgId } = session;
   const since24h = new Date(Date.now() - 24 * 60 * 60 * 1000);
 
-  // Each query is wrapped so a single failure can't take down the whole
-  // dashboard — the surface degrades gracefully and the user still sees
-  // a useful page.
   const [
     byAction,
     aggregate,
@@ -77,8 +72,9 @@ export default async function AdminHomePage() {
   ]);
 
   const byActionMap: Record<string, number> = {};
-  for (const row of byAction)
+  for (const row of byAction) {
     byActionMap[row.action as string] = row._count.action;
+  }
   const total = Number(aggregate._count.id);
   const blocked = byActionMap.BLOCK ?? 0;
   const redacted = byActionMap.REDACT ?? 0;
@@ -92,10 +88,10 @@ export default async function AdminHomePage() {
     <section className="flex flex-col gap-6 md:gap-8">
       <header className="flex flex-col gap-2">
         <span className="font-mono text-xs uppercase tracking-wider text-graphite">
-          // inicio · últimas 24 h
+          // home / last 24 h
         </span>
         <h1 className="text-2xl font-semibold tracking-tight md:text-3xl">
-          ¿Estamos alineados ahora?
+          Are we aligned right now?
         </h1>
         <p className="max-w-2xl text-sm text-graphite-dark md:text-base">
           {greetingFor(score, total)}
@@ -105,7 +101,7 @@ export default async function AdminHomePage() {
             href="/admin/arkiv"
             className="font-mono text-[11px] uppercase tracking-[0.22em] text-ink underline underline-offset-4"
           >
-            abrir evidencia arkiv →
+            open arkiv evidence -&gt;
           </Link>
         </div>
       </header>
@@ -118,10 +114,10 @@ export default async function AdminHomePage() {
       />
 
       <div className="grid gap-px overflow-hidden border border-graphite-dark/20 bg-graphite-dark/15 md:grid-cols-4">
-        <Kpi label="block · 24h" value={fmt(blocked)} tone={ACTION_TONE.BLOCK.tile} />
-        <Kpi label="redact · 24h" value={fmt(redacted)} tone={ACTION_TONE.REDACT.tile} />
-        <Kpi label="warn · 24h" value={fmt(warned)} tone={ACTION_TONE.WARN.tile} />
-        <Kpi label="p50 latencia" value={`${avgLatency} ms`} />
+        <Kpi label="block / 24h" value={fmt(blocked)} tone={ACTION_TONE.BLOCK.tile} />
+        <Kpi label="redact / 24h" value={fmt(redacted)} tone={ACTION_TONE.REDACT.tile} />
+        <Kpi label="warn / 24h" value={fmt(warned)} tone={ACTION_TONE.WARN.tile} />
+        <Kpi label="p50 latency" value={`${avgLatency} ms`} />
       </div>
 
       <div className="grid gap-4 lg:grid-cols-[1.4fr_1fr]">
@@ -140,23 +136,21 @@ export default async function AdminHomePage() {
 
 function greetingFor(score: number | null, total: number): string {
   if (total === 0) {
-    return "Sin tráfico todavía. Cuando un dev mande el primer prompt vía proxy, aparece acá.";
+    return "No traffic yet. Once the first agent request goes through the proxy, it will appear here.";
   }
-  if (score === null) return "Cargando datos…";
-  if (score >= 95)
-    return "Tráfico saludable. La mayoría de prompts pasa sin desvíos de policy.";
-  if (score >= 80)
-    return "Hay algunos desvíos detectados. Revisá las sugerencias y los eventos más recientes.";
-  return "Atención: una porción significativa del tráfico se está bloqueando. Revisá las reglas y la cola de sugerencias.";
+  if (score === null) return "Loading data...";
+  if (score >= 95) {
+    return "Healthy traffic. Most prompts are passing without policy deviations.";
+  }
+  if (score >= 80) {
+    return "Some deviations were detected. Review suggestions and recent events.";
+  }
+  return "Attention: a meaningful share of traffic is being blocked. Review rules and the suggestions queue.";
 }
 
 function fmt(n: number): string {
-  return n.toLocaleString("es-AR");
+  return n.toLocaleString("en-US");
 }
-
-// ---------------------------------------------------------------------------
-// Alignment hero
-// ---------------------------------------------------------------------------
 
 function AlignmentHero({
   score,
@@ -175,7 +169,7 @@ function AlignmentHero({
       style={{ borderRadius: "var(--radius)" }}
     >
       <span className="font-mono text-[11px] uppercase tracking-[0.28em] text-graphite">
-        // alineamiento · últimas 24 h
+        // alignment / last 24 h
       </span>
 
       {score !== null ? (
@@ -190,17 +184,17 @@ function AlignmentHero({
           </div>
           <p className="max-w-sm text-sm leading-relaxed text-graphite-dark">
             <span className="font-mono text-[11px] uppercase tracking-[0.22em] text-ink">
-              {fmt(aligned)} alineados / {fmt(total)} totales
+              {fmt(aligned)} aligned / {fmt(total)} total
             </span>
             <br />
             {blocked > 0
-              ? `${fmt(blocked)} ${blocked === 1 ? "fue bloqueado" : "fueron bloqueados"} antes de llegar al modelo.`
-              : "Ningún request fue bloqueado."}
+              ? `${fmt(blocked)} ${blocked === 1 ? "request was" : "requests were"} blocked before reaching the model.`
+              : "No request was blocked."}
           </p>
         </div>
       ) : (
         <p className="mt-4 font-mono text-xs text-graphite">
-          // sin datos suficientes para calcular alineamiento
+          // not enough data to calculate alignment
         </p>
       )}
 
@@ -215,10 +209,6 @@ function AlignmentHero({
     </div>
   );
 }
-
-// ---------------------------------------------------------------------------
-// KPI tile
-// ---------------------------------------------------------------------------
 
 function Kpi({
   label,
@@ -243,10 +233,6 @@ function Kpi({
   );
 }
 
-// ---------------------------------------------------------------------------
-// Recent events panel — compact log strip
-// ---------------------------------------------------------------------------
-
 type EventDTO = ReturnType<typeof toEventDTO>;
 
 function RecentEventsPanel({ events }: { events: EventDTO[] }) {
@@ -257,18 +243,18 @@ function RecentEventsPanel({ events }: { events: EventDTO[] }) {
     >
       <header className="flex items-baseline justify-between border-b border-graphite-dark/15 px-5 py-3">
         <span className="font-mono text-xs uppercase tracking-[0.22em] text-graphite">
-          // últimos eventos
+          // latest events
         </span>
         <Link
           href="/admin/events"
           className="font-mono text-[11px] uppercase tracking-[0.22em] text-ink underline-offset-4 hover:underline"
         >
-          ver feed completo →
+          view full feed -&gt;
         </Link>
       </header>
       {events.length === 0 ? (
         <p className="px-5 py-6 font-mono text-xs text-graphite">
-          // sin eventos. mandá un request al proxy y va a aparecer acá.
+          // no events yet. Send a request through the proxy and it will appear here.
         </p>
       ) : (
         <ul className="divide-y divide-graphite-dark/10">
@@ -281,8 +267,8 @@ function RecentEventsPanel({ events }: { events: EventDTO[] }) {
                   {e.action}
                 </span>
                 <span className="font-mono text-[10px] uppercase tracking-[0.22em] text-graphite">
-                  {timeAgo(e.createdAt)} · {e.latencyTotalMs}ms ·{" "}
-                  {e.policyHits?.[0]?.slug ?? "—"}
+                  {timeAgo(e.createdAt)} / {e.latencyTotalMs}ms /{" "}
+                  {e.policyHits?.[0]?.slug ?? "-"}
                 </span>
               </div>
               <p className="line-clamp-1 font-mono text-xs text-graphite-dark">
@@ -320,21 +306,17 @@ function previewPrompt(prompt: string): string {
     // not JSON, leave as is
   }
   text = text.replace(/\s+/g, " ").trim();
-  return text.length > 120 ? `${text.slice(0, 117)}…` : text;
+  return text.length > 120 ? `${text.slice(0, 117)}...` : text;
 }
 
 function timeAgo(iso: string): string {
   const t = new Date(iso).getTime();
   const diff = Math.max(0, Date.now() - t);
-  if (diff < 60_000) return "ahora";
+  if (diff < 60_000) return "now";
   if (diff < 3_600_000) return `${Math.floor(diff / 60_000)}m`;
   if (diff < 86_400_000) return `${Math.floor(diff / 3_600_000)}h`;
   return `${Math.floor(diff / 86_400_000)}d`;
 }
-
-// ---------------------------------------------------------------------------
-// Pending widgets — short list of things to act on
-// ---------------------------------------------------------------------------
 
 function PendingPanel({
   pendingSuggestions,
@@ -355,29 +337,29 @@ function PendingPanel({
       style={{ borderRadius: "var(--radius)" }}
     >
       <PendingItem
-        label="// sugerencias por aprobar"
+        label="// suggestions to approve"
         value={pendingSuggestions}
         href="/admin/suggestions"
-        cta="revisar"
+        cta="review"
         emphasis={pendingSuggestions > 0}
       />
       <PendingItem
-        label="// reglas activas"
+        label="// active rules"
         value={activeRulesCount}
-        secondary={`${totalRulesCount} totales`}
+        secondary={`${totalRulesCount} total`}
         href="/admin/rules"
-        cta="ver todas"
+        cta="view all"
       />
       <PendingItem
-        label="// devs"
+        label="// developers"
         value={activeMembersCount}
         secondary={
           pendingMembersCount > 0
-            ? `${pendingMembersCount} pendientes`
-            : "todos vinculados"
+            ? `${pendingMembersCount} pending`
+            : "all linked"
         }
         href="/admin/team"
-        cta="gestionar"
+        cta="manage"
         emphasis={pendingMembersCount > 0}
       />
     </div>
@@ -414,14 +396,14 @@ function PendingItem({
               emphasis ? "font-bold text-ink" : "font-semibold text-ink"
             }`}
           >
-            {value.toLocaleString("es-AR")}
+            {value.toLocaleString("en-US")}
           </span>
           {emphasis ? (
             <span aria-hidden className="block h-3 w-1 bg-ink" />
           ) : null}
           {secondary ? (
             <span className="font-mono text-[11px] text-graphite">
-              · {secondary}
+              / {secondary}
             </span>
           ) : null}
         </div>
@@ -430,7 +412,7 @@ function PendingItem({
         aria-hidden
         className="font-mono text-[11px] uppercase tracking-[0.22em] text-graphite transition-colors group-hover:text-ink"
       >
-        {cta} →
+        {cta} -&gt;
       </span>
     </Link>
   );

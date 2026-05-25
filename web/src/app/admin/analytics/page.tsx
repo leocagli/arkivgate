@@ -1,4 +1,4 @@
-// /admin/analytics - metricas agregadas de interactions del proxy.
+// /admin/analytics - aggregate metrics from proxy interactions.
 /* eslint-disable react/jsx-no-comment-textnodes */
 import { getAdminSession } from "@/lib/admin-session";
 import { getAnalytics } from "@/lib/analytics-server";
@@ -16,14 +16,14 @@ export default async function AnalyticsPage() {
     <section>
       <header className="mb-8 flex flex-col gap-2">
         <span className="font-mono text-xs uppercase tracking-wider text-graphite">
-          // analiticas
+          // analytics
         </span>
         <h1 className="text-3xl font-semibold tracking-tight md:text-4xl">
-          Lo que sucede en la organizacion.
+          What is happening inside the organization.
         </h1>
         <p className="max-w-2xl text-graphite-dark">
-          Metricas agregadas de cada request que paso por el proxy. Selecciona
-          el rango de tiempo.
+          Aggregate metrics for every request that passed through the proxy.
+          Select a time range to inspect enforcement activity.
         </p>
       </header>
       <AnalyticsPanel initial={initial} />

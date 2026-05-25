@@ -1,4 +1,4 @@
-// /admin/suggestions — cola de aprobación del AI Suggestor y de imports gdoc.
+// /admin/suggestions - approval queue for AI Suggestor and Google Doc imports.
 /* eslint-disable react/jsx-no-comment-textnodes */
 import { getAdminSession } from "@/lib/admin-session";
 import {
@@ -18,8 +18,6 @@ export default async function SuggestionsPage() {
 
   const rows = await listSuggestions(session.orgId);
 
-  // Pull the current state of every policy whose slug matches an incoming
-  // suggestion. The diff view in the panel needs both sides.
   const proposedSlugs = Array.from(new Set(rows.map((r) => r.proposedSlug)));
   const currentBySlug = await listCurrentRulesBySlugs(session.orgId, proposedSlugs);
 
@@ -27,15 +25,15 @@ export default async function SuggestionsPage() {
     <section>
       <header className="mb-8 flex flex-col gap-2">
         <span className="font-mono text-xs uppercase tracking-wider text-graphite">
-          // sugerencias
+          // suggestions
         </span>
         <h1 className="text-3xl font-semibold tracking-tight md:text-4xl">
-          Cola de aprobación.
+          Approval queue.
         </h1>
         <p className="max-w-2xl text-graphite-dark">
-          Reglas propuestas por el AI Suggestor o importadas desde Google Docs.
-          Aceptar las convierte en políticas activas; el proxy las aplica al
-          próximo request.
+          Rules proposed by AI Suggestor or imported from Google Docs. Accepting
+          a suggestion turns it into an active policy; the proxy applies it on
+          the next request.
         </p>
       </header>
       <SuggestionsPanel

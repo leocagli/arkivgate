@@ -1,6 +1,4 @@
-// /admin/rules — lista de reglas + form para crear regla NL.
-// El proxy lee `policies` por request, así que crear acá ⇒ próximo prompt
-// ya pasa por el judge con la nueva regla.
+// /admin/rules - rules list + form for creating natural-language policies.
 /* eslint-disable react/jsx-no-comment-textnodes */
 import { getAdminSession } from "@/lib/admin-session";
 import { listRules } from "@/lib/policies-server";
@@ -20,20 +18,23 @@ export default async function RulesPage() {
     <section>
       <header className="mb-8 flex flex-col gap-2">
         <span className="font-mono text-xs uppercase tracking-wider text-graphite">
-          // reglas
+          // rules
         </span>
         <h1 className="text-3xl font-semibold tracking-tight md:text-4xl">
-          Lo que el firewall sabe controlar.
+          What the firewall knows how to control.
         </h1>
         <p className="max-w-2xl text-graphite-dark">
-          Cada regla viaja al judge en cada request. Escribís en español lo que
-          no querés que salga; el modelo decide si el prompt la viola.
+          Every rule travels with each request. Write the policy in natural
+          language; the judge decides whether the prompt violates it.
         </p>
       </header>
 
-      <div className="mb-10 border border-graphite-dark/20 p-6" style={{ borderRadius: "var(--radius)" }}>
+      <div
+        className="mb-10 border border-graphite-dark/20 p-6"
+        style={{ borderRadius: "var(--radius)" }}
+      >
         <span className="mb-3 block font-mono text-xs uppercase tracking-wider text-graphite">
-          // importar desde Google Docs
+          // import from Google Docs
         </span>
         <GdocImportForm />
       </div>

@@ -43,22 +43,22 @@ function asExamples(value: unknown): ExampleHit[] {
 }
 
 const DOMAIN_LABELS: Record<string, string> = {
-  credentials: "credenciales",
+  credentials: "credentials",
   pii: "PII",
-  internal_paths: "paths internos",
-  business_policy: "policy de negocio",
-  code: "código",
+  internal_paths: "internal paths",
+  business_policy: "business policy",
+  code: "code",
 };
 
 const SEVERITY_LABELS: Record<string, string> = {
-  low: "baja",
-  medium: "media",
-  high: "alta",
+  low: "low",
+  medium: "medium",
+  high: "high",
 };
 
-// Suggestions is a monitoring/approval surface — design.md § 6 authorises
+// Suggestions is a monitoring/approval surface Ã¢â‚¬â€ design.md Ã‚Â§ 6 authorises
 // functional color here. Severity reads as a tinted background + text
-// weight gradient (LOG 400 → BLOCK 700) so it scans both with and
+// weight gradient (LOG 400 Ã¢â€ â€™ BLOCK 700) so it scans both with and
 // without color recognition.
 const ACTION_WEIGHT: Record<string, string> = {
   LOG: "font-normal",
@@ -132,7 +132,7 @@ export function SuggestionsPanel({
         await refresh();
       }
     } catch {
-      setRunResult({ ok: false, error: "Error de red al contactar el suggestor." });
+      setRunResult({ ok: false, error: "Network error while contacting the suggestor." });
     } finally {
       setRunning(false);
       clearTimerRef.current = setTimeout(() => setRunResult(null), 5000);
@@ -169,10 +169,10 @@ export function SuggestionsPanel({
                   className="inline-block h-2 w-2 animate-pulse rounded-full bg-graphite"
                   aria-hidden="true"
                 />
-                analizando...
+                analyzing...
               </>
             ) : (
-              "analizar con IA"
+              "analyze with AI"
             )}
           </button>
         </div>
@@ -199,16 +199,16 @@ export function SuggestionsPanel({
             />
             {runResult.ok
               ? (runResult.inserted ?? 0) > 0
-                ? `// ${runResult.inserted} nuevas sugerencias generadas`
-                : "// sin patrones nuevos detectados"
-              : `// error: ${runResult.error ?? "desconocido"}`}
+                ? `// ${runResult.inserted} new suggestions generated`
+                : "// no new patterns detected"
+              : `// error: ${runResult.error ?? "unknown"}`}
           </span>
         )}
       </div>
 
       <div className="flex flex-col gap-4">
         <span className="font-mono text-xs uppercase tracking-wider text-graphite">
-          // {pending.length} pendientes
+          // {pending.length} pending
         </span>
         {pending.length === 0 ? (
           <div
@@ -216,15 +216,14 @@ export function SuggestionsPanel({
             style={{ borderRadius: "var(--radius)" }}
           >
             <span className="font-mono text-[11px] uppercase tracking-[0.22em] text-graphite">
-              // sin sugerencias pendientes
+              // no pending suggestions
             </span>
             <p className="text-sm leading-relaxed text-graphite-dark">
-              Cuando el AI Suggestor analice el tráfico — o cuando importes
-              un Google Doc desde{" "}
+              When AI Suggestor analyzes traffic, or when you import a Google Doc from{" "}
               <a href="/admin/rules" className="text-ink underline underline-offset-4">
-                reglas
+                rules
               </a>
-              {" "}— las propuestas aparecen acá para que decidas.
+              {" "}the proposals appear here for review.
             </p>
           </div>
         ) : (
@@ -244,7 +243,7 @@ export function SuggestionsPanel({
       {decided.length > 0 && (
         <div className="flex flex-col gap-4">
           <span className="font-mono text-xs uppercase tracking-wider text-graphite">
-            // historial · {decided.length}
+            // history / {decided.length}
           </span>
           <ul className="flex flex-col gap-3 opacity-60">
             {decided.map((s) => (
@@ -298,7 +297,7 @@ function SuggestionCard({
               : "border-ink text-ink"
           }`}
         >
-          // {current ? "actualiza regla" : "regla nueva"}
+          // {current ? "updates rule" : "new rule"}
         </span>
 
         <span
@@ -324,7 +323,7 @@ function SuggestionCard({
       {current ? (
         <div className="mb-4 grid gap-3 md:grid-cols-2">
           <DiffPane
-            label="// actual"
+            label="// current"
             domain={DOMAIN_LABELS[current.domain] ?? current.domain}
             layer={current.layer}
             action={current.action}
@@ -333,9 +332,9 @@ function SuggestionCard({
             faded
           />
           <DiffPane
-            label="// propuesta"
+            label="// proposed"
             domain={DOMAIN_LABELS[s.proposedDomain] ?? s.proposedDomain}
-            layer={s.proposedLayer ?? "—"}
+            layer={s.proposedLayer ?? "-"}
             action={s.proposedAction}
             severity={SEVERITY_LABELS[s.proposedSeverity] ?? s.proposedSeverity}
             rule={s.proposedRule}
@@ -349,15 +348,15 @@ function SuggestionCard({
 
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1 font-mono text-[11px] text-graphite">
         <span>{DOMAIN_LABELS[s.proposedDomain] ?? s.proposedDomain}</span>
-        <span>·</span>
+        <span>/</span>
         <span>
-          severidad {SEVERITY_LABELS[s.proposedSeverity] ?? s.proposedSeverity}
+          severity {SEVERITY_LABELS[s.proposedSeverity] ?? s.proposedSeverity}
         </span>
         {s.matchCount > 0 && (
           <>
-            <span>·</span>
+            <span>/</span>
             <span className="font-semibold text-ink">
-              {s.matchCount} matches retroactivos
+              {s.matchCount} retroactive matches
             </span>
           </>
         )}
@@ -366,7 +365,7 @@ function SuggestionCard({
       {examples.length > 0 && (
         <div className="mt-3 flex flex-col gap-1.5 border-t border-graphite-dark/15 pt-3">
           <span className="font-mono text-[10px] uppercase tracking-[0.22em] text-graphite">
-            // ejemplos · matchearían
+            // examples / would match
           </span>
           {examples.map((ex, i) => {
             const text = ex.promptRedacted ?? ex.prompt_redacted ?? "";
@@ -375,7 +374,7 @@ function SuggestionCard({
                 key={(ex.traceId ?? "") + i}
                 className="break-words bg-paper-soft/40 p-2 font-mono text-[11px] leading-relaxed text-ink"
               >
-                {text.length > 140 ? `${text.slice(0, 137)}…` : text}
+                {text.length > 140 ? `${text.slice(0, 137)}Ã¢â‚¬Â¦` : text}
               </p>
             );
           })}
@@ -390,14 +389,14 @@ function SuggestionCard({
             className="inline-flex items-center bg-ink px-4 py-2 font-mono text-xs uppercase tracking-wider text-paper transition-colors hover:bg-graphite-dark"
             style={{ borderRadius: "var(--radius)" }}
           >
-            aceptar
+            accept
           </button>
           <button
             type="button"
             onClick={() => onDecide(s.id, "reject")}
             className="font-mono text-xs uppercase tracking-wider text-graphite transition-colors hover:text-ink"
           >
-            rechazar
+            reject
           </button>
         </div>
       )}
@@ -449,9 +448,9 @@ function DiffPane({
             {action}
           </span>
         </span>
-        <span>· {layer}</span>
-        <span>· {domain}</span>
-        <span>· sev {severity}</span>
+        <span>/ {layer}</span>
+        <span>/ {domain}</span>
+        <span>/ sev {severity}</span>
       </div>
     </div>
   );

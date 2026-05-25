@@ -57,7 +57,7 @@ export function AdminShell({
             <button
               type="button"
               onClick={() => setOpen(true)}
-              aria-label="abrir menú"
+              aria-label="abrir menÃº"
               aria-expanded={open}
               className="flex h-9 w-9 items-center justify-center border border-graphite-dark/25 text-ink transition-colors hover:border-ink md:hidden"
               style={{ borderRadius: "var(--radius)" }}
@@ -75,7 +75,7 @@ export function AdminShell({
             </Link>
           </div>
           <div className="flex items-center gap-3 font-mono text-xs uppercase tracking-wider text-graphite md:gap-4">
-            <span className="hidden sm:inline">// org · {orgId}</span>
+            <span className="hidden sm:inline">// org Â· {orgId}</span>
             <span
               className="hidden md:inline"
               title={email}
@@ -97,7 +97,7 @@ export function AdminShell({
           >
             <motion.button
               type="button"
-              aria-label="cerrar menú"
+              aria-label="close menÃº"
               onClick={() => setOpen(false)}
               className="absolute inset-0 bg-ink/40 backdrop-blur-sm"
               initial={{ opacity: 0 }}
@@ -132,16 +132,16 @@ export function AdminShell({
                 <button
                   type="button"
                   onClick={() => setOpen(false)}
-                  aria-label="cerrar menú"
+                  aria-label="close menÃº"
                   className="flex h-8 w-8 items-center justify-center font-mono text-graphite transition-colors hover:text-ink"
                 >
-                  ✕
+                  âœ•
                 </button>
               </div>
               <AdminNav onNavigate={() => setOpen(false)} />
               {themeSwitcher}
               <p className="mt-auto font-mono text-[11px] leading-relaxed text-graphite">
-                // org · {orgId}
+                // org Â· {orgId}
                 <br />
                 // {authConfigured ? "google session" : "demo session"}
               </p>
@@ -153,15 +153,15 @@ export function AdminShell({
       {/* Viewport-bound shell: the row below fills the remaining viewport
           height (header is the only other flex child). Aside and main
           are siblings that each carry their own overflow when the
-          content actually needs to scroll. min-h-0 on the row is the
+          content currently needs to scroll. min-h-0 on the row is the
           flex-child trick that lets the inner overflow-y-auto take
-          effect — without it the children grow forever. */}
+          effect â€” without it the children grow forever. */}
       <div className="mx-auto flex w-full max-w-6xl min-h-0 flex-1 gap-8 px-6">
         <aside className="hidden w-44 shrink-0 flex-col gap-8 overflow-hidden py-8 md:flex md:py-10">
           <AdminNav />
           {themeSwitcher}
           <p className="mt-auto font-mono text-[11px] leading-relaxed text-graphite">
-            // org · {orgId}
+            // org Â· {orgId}
             <br />
             // {authConfigured ? "google session" : "demo session"}
           </p>
@@ -178,7 +178,7 @@ export function AdminShell({
 function Breadcrumb({ section }: { section: string }) {
   return (
     <p className="font-mono text-[11px] uppercase tracking-[0.28em] text-graphite">
-      // admin · {section}
+      // admin Â· {section}
     </p>
   );
 }
@@ -194,7 +194,7 @@ function HamburgerIcon({ className = "" }: { className?: string }) {
 }
 
 function EmailDot({ email }: { email: string }) {
-  // Single character avatar derived from the email — fills the gap when the
+  // Single character avatar derived from the email â€” fills the gap when the
   // full address is hidden by the responsive layout.
   const ch = email[0]?.toUpperCase() ?? "?";
   return (

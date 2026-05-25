@@ -7,7 +7,7 @@ import { ApiKeysPanel } from "./_components/api-keys-panel";
 export const dynamic = "force-dynamic";
 
 function interceptorBaseUrl() {
-  return process.env.ArkivGate_PROXY_URL || "https://<tu-interceptor-railway>.up.railway.app";
+  return process.env.ArkivGate_PROXY_URL || "https://<your-railway-interceptor>.up.railway.app";
 }
 
 export default async function ApiKeysPage() {
@@ -23,12 +23,12 @@ export default async function ApiKeysPage() {
           // api keys
         </span>
         <h1 className="text-3xl font-semibold tracking-tight md:text-4xl">
-          Conecta ArkivGate a apps externas.
+          Connect ArkivGate to external apps.
         </h1>
         <p className="max-w-2xl text-graphite-dark">
-          Genera un secret runtime para que un sitio cliente, wallet, dApp o
-          agente pueda pasar por el interceptor. El secret se muestra una sola
-          vez; en la base solo queda el hash.
+          Generate a runtime secret so a customer site, wallet, dApp, or agent
+          can pass through the interceptor. The secret is shown once; only the
+          hash is stored.
         </p>
       </header>
 

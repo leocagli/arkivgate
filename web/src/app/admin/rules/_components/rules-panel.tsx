@@ -14,17 +14,17 @@ import {
 } from "@/lib/policies";
 
 const DOMAIN_LABELS: Record<PolicyDomain, string> = {
-  credentials: "credenciales",
+  credentials: "credentials",
   pii: "PII",
-  internal_paths: "paths internos",
-  business_policy: "policy de negocio",
-  code: "código",
+  internal_paths: "internal paths",
+  business_policy: "business policy",
+  code: "code",
 };
 
 const SEVERITY_LABELS: Record<Severity, string> = {
-  low: "baja",
-  medium: "media",
-  high: "alta",
+  low: "low",
+  medium: "medium",
+  high: "high",
 };
 
 type FormState = {
@@ -73,7 +73,7 @@ export function RulesPanel({ initialRules }: { initialRules: RuleDTO[] }) {
       });
       const data = await res.json();
       if (!res.ok) {
-        setError(data?.error ?? "no se pudo crear");
+        setError(data?.error ?? "Could not create rule");
         return;
       }
       setForm(EMPTY);
@@ -105,20 +105,20 @@ export function RulesPanel({ initialRules }: { initialRules: RuleDTO[] }) {
       method: "DELETE",
     });
     if (res.ok) {
-      setToast({ kind: "success", message: `Regla "${rule.slug}" eliminada` });
+      setToast({ kind: "success", message: `Rule "${rule.slug}" deleted` });
       await refresh();
     } else {
       const data = await res.json().catch(() => null);
-      setToast({ kind: "error", message: data?.error ?? "no se pudo borrar" });
+      setToast({ kind: "error", message: data?.error ?? "Could not delete rule" });
     }
   }
 
   const deleteConfig: ConfirmConfig | null = pendingDelete
     ? {
-        title: `¿Borrar regla "${pendingDelete.slug}"?`,
-        body: `Va a dejar de evaluarse en el próximo prompt. Los eventos pasados se mantienen para auditoría.`,
-        confirmLabel: "Borrar",
-        cancelLabel: "Cancelar",
+        title: `Delete rule "${pendingDelete.slug}"?`,
+        body: "It will stop being evaluated on the next prompt. Past events remain available for audit.",
+        confirmLabel: "Delete",
+        cancelLabel: "Cancel",
         destructive: true,
       }
     : null;
@@ -135,7 +135,7 @@ export function RulesPanel({ initialRules }: { initialRules: RuleDTO[] }) {
 
       <div className="flex items-center justify-between">
         <span className="font-mono text-xs uppercase tracking-wider text-graphite">
-          // {rules.length} reglas · {rules.filter((r) => r.isActive).length} activas
+          // {rules.length} rules / {rules.filter((r) => r.isActive).length} active
         </span>
         <button
           type="button"
@@ -143,7 +143,7 @@ export function RulesPanel({ initialRules }: { initialRules: RuleDTO[] }) {
           className="inline-flex items-center bg-ink px-4 py-2 font-mono text-xs uppercase tracking-wider text-paper transition-colors hover:bg-graphite-dark"
           style={{ borderRadius: "var(--radius)" }}
         >
-          {showForm ? "cerrar" : "+ nueva regla"}
+          {showForm ? "close" : "+ new rule"}
         </button>
       </div>
 
@@ -153,7 +153,7 @@ export function RulesPanel({ initialRules }: { initialRules: RuleDTO[] }) {
           className="grid gap-5 border border-graphite-dark/20 bg-paper p-6 md:grid-cols-2"
           style={{ borderRadius: "var(--radius)" }}
         >
-          <Field label="nombre · slug auto" hint="ej. customer-name-mention">
+          <Field label="name / auto slug" hint="e.g. customer-name-mention">
             <input
               required
               value={form.name}
@@ -161,7 +161,7 @@ export function RulesPanel({ initialRules }: { initialRules: RuleDTO[] }) {
               className="w-full border border-graphite-dark/30 bg-paper px-3 py-2 font-mono text-sm focus:border-ink focus:outline-none"
             />
           </Field>
-          <Field label="dominio">
+          <Field label="domain">
             <select
               value={form.domain}
               onChange={(e) =>
@@ -177,8 +177,8 @@ export function RulesPanel({ initialRules }: { initialRules: RuleDTO[] }) {
             </select>
           </Field>
           <Field
-            label="qué bloquear · descripción NL"
-            hint="el judge ve este texto + el prompt del usuario y decide si matchea"
+            label="what to block / NL description"
+            hint="The judge compares this text against the user's prompt."
             full
           >
             <textarea
@@ -186,11 +186,11 @@ export function RulesPanel({ initialRules }: { initialRules: RuleDTO[] }) {
               rows={3}
               value={form.rule}
               onChange={(e) => setForm({ ...form, rule: e.target.value })}
-              placeholder="ej. no mencionar nombres de clientes (Acme, Globex, Initech)"
+              placeholder="e.g. do not mention customer names such as Acme, Globex, or Initech"
               className="w-full resize-y border border-graphite-dark/30 bg-paper px-3 py-2 font-sans text-sm leading-relaxed focus:border-ink focus:outline-none"
             />
           </Field>
-          <Field label="acción si matchea">
+          <Field label="action on match">
             <select
               value={form.defaultAction}
               onChange={(e) =>
@@ -205,7 +205,7 @@ export function RulesPanel({ initialRules }: { initialRules: RuleDTO[] }) {
               ))}
             </select>
           </Field>
-          <Field label="severidad">
+          <Field label="severity">
             <select
               value={form.severity}
               onChange={(e) =>
@@ -223,7 +223,7 @@ export function RulesPanel({ initialRules }: { initialRules: RuleDTO[] }) {
           {error ? (
             <p className="inline-flex items-center gap-2 font-mono text-xs font-semibold text-ink md:col-span-2">
               <span aria-hidden className="h-3 w-1 bg-ink" />
-              // error · {error}
+              // error / {error}
             </p>
           ) : null}
           <div className="flex items-center gap-3 md:col-span-2">
@@ -233,10 +233,10 @@ export function RulesPanel({ initialRules }: { initialRules: RuleDTO[] }) {
               className="inline-flex items-center bg-ink px-5 py-2.5 font-mono text-xs uppercase tracking-wider text-paper transition-colors hover:bg-graphite-dark disabled:opacity-60"
               style={{ borderRadius: "var(--radius)" }}
             >
-              {submitting ? "guardando…" : "crear regla"}
+              {submitting ? "saving..." : "create rule"}
             </button>
             <span className="font-mono text-[11px] text-graphite">
-              // se aplica al próximo prompt sin reload
+              // applies to the next prompt without reload
             </span>
           </div>
         </form>
@@ -250,11 +250,11 @@ export function RulesPanel({ initialRules }: { initialRules: RuleDTO[] }) {
           <thead className="bg-paper-soft/40 font-mono text-[11px] uppercase tracking-wider text-graphite">
             <tr>
               <th className="px-4 py-3">slug</th>
-              <th className="px-4 py-3">descripción</th>
-              <th className="px-4 py-3">dominio</th>
-              <th className="px-4 py-3">acción</th>
+              <th className="px-4 py-3">description</th>
+              <th className="px-4 py-3">domain</th>
+              <th className="px-4 py-3">action</th>
               <th className="px-4 py-3">sev</th>
-              <th className="px-4 py-3 text-right">estado</th>
+              <th className="px-4 py-3 text-right">status</th>
             </tr>
           </thead>
           <tbody>
@@ -263,12 +263,11 @@ export function RulesPanel({ initialRules }: { initialRules: RuleDTO[] }) {
                 <td colSpan={6} className="px-4 py-8">
                   <div className="flex flex-col items-start gap-2 text-graphite-dark">
                     <span className="font-mono text-[11px] uppercase tracking-[0.22em] text-graphite">
-                      // sin reglas todavía
+                      // no rules yet
                     </span>
                     <p className="text-sm leading-relaxed">
-                      Llená el formulario de arriba o importá un Google Doc
-                      con políticas — el proxy recoge la regla en el próximo
-                      prompt, sin reload.
+                      Fill the form above or import a Google Doc with policies.
+                      The proxy picks up the rule on the next prompt, without reload.
                     </p>
                   </div>
                 </td>
@@ -304,14 +303,14 @@ export function RulesPanel({ initialRules }: { initialRules: RuleDTO[] }) {
                       }`}
                       style={{ borderRadius: "var(--radius)" }}
                     >
-                      {r.isActive ? "activa" : "pausada"}
+                      {r.isActive ? "active" : "paused"}
                     </button>
                     <button
                       type="button"
                       onClick={() => handleDelete(r)}
                       className="font-mono text-[11px] uppercase tracking-wider text-graphite transition-colors hover:font-semibold hover:text-ink"
                     >
-                      borrar
+                      delete
                     </button>
                   </div>
                 </td>
@@ -348,12 +347,6 @@ function Field({
   );
 }
 
-// ActionTag — functional color tint (BLOCK red, REDACT amber, WARN
-// orange, LOG zinc) layered on top of the weight gradient
-// (LOG 400 → BLOCK 700) so severity scans both with and without color
-// recognition. design.md § 6 authorises this on monitoring/operational
-// surfaces; configuration screens like this one share the same pill so
-// the admin doesn't have to relearn the visual language between tabs.
 function ActionTag({ action }: { action: RuleDTO["defaultAction"] }) {
   const weight: Record<RuleDTO["defaultAction"], string> = {
     LOG: "font-normal",

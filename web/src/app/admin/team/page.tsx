@@ -1,6 +1,4 @@
-// /admin/team — lista de members + form para invitar dev por email.
-// El dev queda creado con `userId=null` y se linkea apenas loguee con
-// Google (lib/org-resolution.ts).
+// /admin/team - member list + developer invite form.
 /* eslint-disable react/jsx-no-comment-textnodes */
 
 import { ensureAdminSession } from "@/lib/admin-session";
@@ -19,16 +17,16 @@ export default async function TeamPage() {
     <section>
       <header className="mb-8 flex flex-col gap-2">
         <span className="font-mono text-xs uppercase tracking-wider text-graphite">
-          // equipo
+          // team
         </span>
         <h1 className="text-3xl font-semibold tracking-tight md:text-4xl">
-          Quién pasa por ArkivGate en tu org.
+          Who can pass through ArkivGate in your org.
         </h1>
         <p className="max-w-2xl text-graphite-dark">
-          Tenés dos formas de sumar devs: invitarlos por email (quedan
-          pre-asociados antes del primer login), o pasarles el comando con tu{" "}
-          <code className="font-mono text-sm">org-id</code> para que se
-          autoadhieran desde el CLI.
+          Add developers by email so they are pre-associated before first login,
+          or share the command with your{" "}
+          <code className="font-mono text-sm">org-id</code> so they can join
+          from the CLI.
         </p>
       </header>
       <TeamPanel

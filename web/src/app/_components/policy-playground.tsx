@@ -28,7 +28,7 @@ const RULES: Rule[] = [
   {
     id: "aws-key",
     label: "AWS key",
-    description: "Detecta credenciales tipo AKIA...",
+    description: "Detecta credentials tipo AKIA...",
     action: "BLOCK",
     pattern: /AKIA[0-9A-Z]{16}/g,
   },
@@ -56,7 +56,7 @@ const RULES: Rule[] = [
   {
     id: "client-name",
     label: "Client naming",
-    description: "Marca menciones de clientes para revision",
+    description: "Flags customer mentions for review",
     action: "WARN",
     pattern: /(acme|globex|initech|umbrella)/gi,
   },
@@ -375,7 +375,7 @@ export function PolicyPlayground() {
                 className="border border-[#7a8f93]/35 bg-white px-2.5 py-1 font-mono text-[11px] uppercase tracking-[0.12em] text-graphite transition-colors hover:bg-[#f3f6f6]"
                 style={{ borderRadius: "6px" }}
               >
-                cerrar
+                close
               </button>
             </div>
 
@@ -386,7 +386,7 @@ export function PolicyPlayground() {
 
               {runningLiveTest ? (
                 <div className="space-y-2 border border-[#1b5a65]/15 bg-white p-4 text-sm text-graphite-dark" style={{ borderRadius: "6px" }}>
-                  <p>Negociando pago x402, ejecutando la politica y persistiendo evidencia en Arkiv...</p>
+                  <p>Negotiating x402 payment, running policy, and persisting evidence on Arkiv...</p>
                   <div className="grid gap-2 text-xs md:grid-cols-4">
                     <StepPill active={x402Phase !== "idle"} label="request" />
                     <StepPill active={x402Phase === "challenged" || x402Phase === "signed" || x402Phase === "settled"} label="402" />
@@ -617,7 +617,7 @@ export function PolicyPlayground() {
               className="border border-[#1b5a65]/25 bg-[#edf5f4] px-2.5 py-1 font-mono text-[11px] uppercase tracking-[0.12em] text-[#1b5a65] transition-colors hover:bg-[#e1edeb]"
               style={{ borderRadius: "6px" }}
             >
-              {copied ? "copiado" : "copiar"}
+              {copied ? "copied" : "copy"}
             </button>
           </div>
           <pre className="min-h-24 whitespace-pre-wrap border border-[#1b5a65]/15 bg-[#f7fbfa] p-3 text-sm leading-relaxed text-ink" style={{ borderRadius: "6px" }}>

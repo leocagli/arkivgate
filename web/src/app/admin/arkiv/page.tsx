@@ -12,11 +12,11 @@ export default function AdminArkivPage() {
           // arkiv
         </span>
         <h1 className="text-3xl font-semibold tracking-tight md:text-4xl">
-          Evidencia on-chain del MVP
+          On-chain evidence for the MVP.
         </h1>
         <p className="max-w-2xl text-graphite-dark">
-          Esta vista conecta el frontend con los endpoints admin de Arkiv para validar
-          escritura de entidades y consulta de evidencia del firewall.
+          This view connects the frontend with Arkiv admin endpoints to validate
+          entity writes and query firewall evidence.
         </p>
       </header>
 

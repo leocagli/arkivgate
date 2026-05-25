@@ -1,5 +1,3 @@
-// Login page del admin. Solo se sirve cuando GOOGLE_CLIENT_ID está
-// configurado — sino el proxy nunca redirige acá (cae al cookie demo).
 /* eslint-disable react/jsx-no-comment-textnodes */
 
 import Link from "next/link";
@@ -11,8 +9,6 @@ import { BrandMark } from "@/components/brand-mark";
 
 const REPO_URL = "https://github.com/leocagli/arkivgate";
 
-// Solo permitimos callbackUrls que sean rutas internas. Si alguien intenta
-// `?callbackUrl=https://malicio.us` lo descartamos y caemos al default.
 function safeCallbackUrl(raw: string | undefined): string {
   if (!raw) return "/admin";
   if (!raw.startsWith("/")) return "/admin";
@@ -20,10 +16,6 @@ function safeCallbackUrl(raw: string | undefined): string {
   return raw;
 }
 
-// Renamed from `LoginPage` so the React Compiler / Next dev profiler
-// doesn't reuse the same `performance.measure("LoginPage")` key across
-// hot reloads — the previous name produced "negative time stamp" warnings
-// when the server component redirected before completing its render.
 export default async function AdminLoginPage({
   searchParams,
 }: {
@@ -48,7 +40,6 @@ export default async function AdminLoginPage({
         <GridBackdrop variant="paper" />
 
         <div className="relative w-full max-w-lg">
-          {/* meta bar — mismo lenguaje que el hero, en negativo. */}
           <div className="rise mb-8 flex flex-wrap items-baseline justify-between gap-3">
             <span className="font-mono text-[11px] uppercase tracking-[0.28em] text-graphite">
               <span aria-hidden className="mr-2 text-ink">
@@ -61,7 +52,7 @@ export default async function AdminLoginPage({
                 aria-hidden
                 className="hero-dot block h-1.5 w-1.5 rounded-full bg-ink"
               />
-              admin · login
+              admin / login
             </span>
           </div>
 
@@ -81,15 +72,15 @@ export default async function AdminLoginPage({
 
             <div className="flex flex-col gap-3">
               <span className="font-mono text-xs uppercase tracking-wider text-graphite">
-                // ingresá
+                // sign in
               </span>
               <h1 className="text-3xl font-semibold leading-[1.05] tracking-tight md:text-4xl">
-                iniciá sesión.
+                Open the cockpit.
               </h1>
               <p className="max-w-sm text-sm leading-relaxed text-graphite-dark">
-                Continuá con Google. Si te invitaron, entrás a la org de tu
-                equipo. Si todavía no estás invitado, creás una nueva como
-                admin owner.
+                Continue with Google. If you were invited, you enter your
+                team's organization. If not, ArkivGate creates a new org with
+                you as admin owner.
               </p>
             </div>
 
@@ -105,7 +96,7 @@ export default async function AdminLoginPage({
                 style={{ borderRadius: "var(--radius)" }}
               >
                 <GoogleMark className="h-5 w-5" />
-                Continuar con Google
+                Continue with Google
                 <span
                   aria-hidden
                   className="ml-1 transition-transform duration-300 group-hover:translate-x-1"
@@ -120,24 +111,23 @@ export default async function AdminLoginPage({
                 className="border border-[#8a2d2d]/25 bg-[#f8e7e7] p-3 text-sm leading-relaxed text-[#8a2d2d]"
                 style={{ borderRadius: "var(--radius)" }}
               >
-                Google no completo el callback. Volve a iniciar sesion desde este boton.
+                Google did not complete the callback. Start the sign-in flow again from this button.
               </div>
             ) : null}
 
             <p className="font-mono text-[11px] leading-relaxed text-graphite">
-              // sólo loggeamos email, nombre y avatar.
+              // we only store email, name, and avatar.
               <br />
-              // sin tracking, sin tokens de gmail.
+              // no Gmail tokens, no tracking.
             </p>
           </div>
 
-          {/* footer del login — vínculos calmos al landing y al repo. */}
           <div
             className="rise mt-6 flex items-center justify-between font-mono text-[11px] uppercase tracking-[0.22em] text-graphite"
             style={{ animationDelay: "240ms" }}
           >
             <Link href="/" className="transition-colors hover:text-ink">
-              ← volver al inicio
+              ← back home
             </Link>
             <Link
               href={REPO_URL}

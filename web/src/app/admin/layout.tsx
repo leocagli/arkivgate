@@ -1,5 +1,4 @@
-// Admin shell. Sidebar + header + main slot. Server component — the proxy
-// (src/proxy.ts) has already gated access by the time we render here.
+// Admin shell. Sidebar + header + main slot.
 /* eslint-disable react/jsx-no-comment-textnodes */
 import Link from "next/link";
 import { isAuthConfigured, signOut } from "@/auth";
@@ -13,15 +12,8 @@ export default async function AdminLayout({
 }: {
   children: React.ReactNode;
 }) {
-  // ensureAdminSession() onboardea al admin (crea org si no existe) en su
-  // primer hit a cualquier ruta /admin/*. Es el reemplazo de la rama de
-  // auto-create que sacamos de resolveOrgForUser.
   const session = await ensureAdminSession();
 
-  // Sin sesión solo se llega acá vía /admin/login (proxy.ts gatea el resto).
-  // Renderizamos children pelado para que la página de login no herede el
-  // sidebar/header del admin con opciones a las que el visitante todavía no
-  // puede entrar.
   if (!session) {
     return <>{children}</>;
   }
@@ -30,8 +22,6 @@ export default async function AdminLayout({
   const orgId = session.orgId;
   const theme = await readThemeCookie();
 
-  // Dev no debería estar acá: el back-office es solo-admin. Mostramos un
-  // mensaje claro en vez de la UI de admin (que confunde y no se puede usar).
   if (session.role === "dev") {
     return <DevForbidden email={email} orgId={orgId} />;
   }
@@ -67,19 +57,19 @@ function DevForbidden({ email, orgId }: { email: string; orgId: string }) {
             // forbidden
           </span>
           <h1 className="text-2xl font-semibold tracking-tight">
-            Estás logueado como dev.
+            You are signed in as a developer.
           </h1>
           <p className="text-sm leading-relaxed text-graphite-dark">
-            El back-office es solo para admins. Vos ({email}) sos un dev de la
-            org <strong>{orgId}</strong> — usá Claude Code normal, ya estás
-            siendo atribuido en cada prompt.
+            The back office is admin-only. You ({email}) are a developer in org{" "}
+            <strong>{orgId}</strong>; keep using Claude Code normally. Your
+            prompts are already attributed.
           </p>
           <div className="flex items-center justify-between gap-4">
             <Link
               href="/"
               className="font-mono text-[11px] uppercase tracking-wider text-graphite hover:text-ink"
             >
-              ← volver al inicio
+              back home
             </Link>
             <SignOutButton />
           </div>
@@ -102,9 +92,8 @@ function SignOutButton() {
         className="border border-graphite-dark/35 px-3 py-1.5 font-mono text-[11px] uppercase tracking-wider text-graphite transition-colors hover:border-ink hover:text-ink"
         style={{ borderRadius: "var(--radius)" }}
       >
-        salir
+        sign out
       </button>
     </form>
   );
 }
-

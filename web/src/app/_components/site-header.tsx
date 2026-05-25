@@ -9,14 +9,14 @@ export function SiteHeader() {
       <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
         <Wordmark />
         <nav className="hidden items-center gap-8 font-mono text-xs uppercase tracking-wide text-graphite md:flex">
-          <Link href="/#producto" className="transition-colors hover:text-ink">
-            producto
+          <Link href="/#product" className="transition-colors hover:text-ink">
+            product
           </Link>
-          <Link href="/#flujo" className="transition-colors hover:text-ink">
-            flujo
+          <Link href="/#flow" className="transition-colors hover:text-ink">
+            flow
           </Link>
-          <Link href="/#arquitectura" className="transition-colors hover:text-ink">
-            arquitectura
+          <Link href="/#architecture" className="transition-colors hover:text-ink">
+            architecture
           </Link>
           <Link href="/#roadmap" className="transition-colors hover:text-ink">
             roadmap
@@ -29,7 +29,7 @@ export function SiteHeader() {
             className="inline-flex items-center bg-ink px-4 py-2 font-mono text-xs uppercase tracking-wider text-paper transition-colors hover:bg-graphite-dark"
             style={{ borderRadius: "var(--radius)" }}
           >
-            login →
+            login -&gt;
           </Link>
         </div>
       </div>

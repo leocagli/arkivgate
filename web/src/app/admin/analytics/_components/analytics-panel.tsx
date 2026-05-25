@@ -22,39 +22,55 @@ type AnalyticsData = {
 type Range = "24h" | "7d" | "30d";
 
 const RANGE_LABELS: Record<Range, string> = {
-  "24h": "últimas 24 h",
-  "7d": "últimos 7 días",
-  "30d": "últimos 30 días",
+  "24h": "last 24 h",
+  "7d": "last 7 days",
+  "30d": "last 30 days",
 };
 
-// Analytics is a monitoring surface — design.md § 6 explicitly authorises
-// functional color here so the compliance officer can scan BLOCK vs WARN
-// at a glance. Weight is layered on top so the hierarchy holds even for
-// readers who can't tell the colors apart.
 const ACTION_STYLES: Record<string, { bar: string; text: string }> = {
-  BLOCK:  { bar: "bg-red-600/85",   text: "font-bold text-red-700" },
+  BLOCK: { bar: "bg-red-600/85", text: "font-bold text-red-700" },
   REDACT: { bar: "bg-amber-500/85", text: "font-semibold text-amber-700" },
-  WARN:   { bar: "bg-orange-400/85", text: "font-medium text-orange-700" },
-  LOG:    { bar: "bg-zinc-400/85",  text: "text-zinc-600" },
+  WARN: { bar: "bg-orange-400/85", text: "font-medium text-orange-700" },
+  LOG: { bar: "bg-zinc-400/85", text: "text-zinc-600" },
 };
 
-type AlignmentLevel = "alto" | "moderado" | "bajo" | "crítico";
+type AlignmentLevel = "high" | "moderate" | "low" | "critical";
 
 function getAlignmentLevel(score: number): AlignmentLevel {
-  if (score >= 90) return "alto";
-  if (score >= 70) return "moderado";
-  if (score >= 50) return "bajo";
-  return "crítico";
+  if (score >= 90) return "high";
+  if (score >= 70) return "moderate";
+  if (score >= 50) return "low";
+  return "critical";
 }
 
 const ALIGNMENT_META: Record<
   AlignmentLevel,
   { label: string; description: string; weight: string; tone: string }
 > = {
-  alto:     { label: "alineamiento alto",     description: "Los devs operan dentro de las políticas de la organización.",         weight: "font-medium",  tone: "text-ink" },
-  moderado: { label: "alineamiento moderado", description: "Hay margen de mejora — revisá las políticas más activadas.",          weight: "font-semibold", tone: "text-ink" },
-  bajo:     { label: "alineamiento bajo",     description: "Un porcentaje significativo de requests está siendo bloqueado.",       weight: "font-bold",     tone: "text-amber-700" },
-  crítico:  { label: "atención requerida",    description: "Más de la mitad de los requests no pasan las políticas vigentes.",    weight: "font-bold",     tone: "text-red-700" },
+  high: {
+    label: "high alignment",
+    description: "Developers are operating within the organization's policies.",
+    weight: "font-medium",
+    tone: "text-ink",
+  },
+  moderate: {
+    label: "moderate alignment",
+    description: "There is room to improve. Review the most triggered policies.",
+    weight: "font-semibold",
+    tone: "text-ink",
+  },
+  low: {
+    label: "low alignment",
+    description: "A significant share of requests is being blocked.",
+    weight: "font-bold",
+    tone: "text-amber-700",
+  },
+  critical: {
+    label: "attention required",
+    description: "More than half of requests are failing the current policies.",
+    weight: "font-bold",
+    tone: "text-red-700",
+  },
 };
 
 export function AnalyticsPanel({ initial }: { initial: AnalyticsData }) {
@@ -72,7 +88,9 @@ export function AnalyticsPanel({ initial }: { initial: AnalyticsData }) {
     }
   }, []);
 
-  useEffect(() => { void load(range); }, [range, load]);
+  useEffect(() => {
+    void load(range);
+  }, [range, load]);
 
   const blocked = data.byAction.BLOCK.count;
   const aligned = data.total - blocked;
@@ -83,8 +101,6 @@ export function AnalyticsPanel({ initial }: { initial: AnalyticsData }) {
 
   return (
     <div className={`flex flex-col gap-8 transition-opacity ${loading ? "opacity-50" : ""}`}>
-
-      {/* Range selector */}
       <div className="flex items-center gap-2">
         {(["24h", "7d", "30d"] as Range[]).map((r) => (
           <button
@@ -103,13 +119,12 @@ export function AnalyticsPanel({ initial }: { initial: AnalyticsData }) {
         ))}
       </div>
 
-      {/* Alignment hero */}
       <div
         className="border border-graphite-dark/15 bg-paper p-6 sm:p-8"
         style={{ borderRadius: "var(--radius)" }}
       >
         <p className="mb-6 font-mono text-[11px] uppercase tracking-wider text-graphite">
-          // alineamiento organizacional
+          // organizational alignment
         </p>
 
         {alignmentScore !== null && meta ? (
@@ -126,11 +141,11 @@ export function AnalyticsPanel({ initial }: { initial: AnalyticsData }) {
                   <span
                     aria-hidden
                     className={`h-3 w-1 ${
-                      level === "alto"
+                      level === "high"
                         ? "bg-graphite"
-                        : level === "moderado"
+                        : level === "moderate"
                           ? "bg-graphite-dark"
-                          : level === "bajo"
+                          : level === "low"
                             ? "bg-amber-600"
                             : "bg-red-600"
                     }`}
@@ -143,7 +158,6 @@ export function AnalyticsPanel({ initial }: { initial: AnalyticsData }) {
               </div>
             </div>
 
-            {/* Progress bar */}
             <div className="flex flex-col gap-2">
               <div className="relative h-2 w-full bg-paper-soft" style={{ borderRadius: "2px" }}>
                 <div
@@ -152,39 +166,36 @@ export function AnalyticsPanel({ initial }: { initial: AnalyticsData }) {
                 />
               </div>
               <div className="flex justify-between font-mono text-[10px] text-graphite">
-                <span>{aligned.toLocaleString("es-AR")} de {data.total.toLocaleString("es-AR")} requests alineados</span>
-                <span>{blocked.toLocaleString("es-AR")} bloqueados</span>
+                <span>{aligned.toLocaleString("en-US")} of {data.total.toLocaleString("en-US")} requests aligned</span>
+                <span>{blocked.toLocaleString("en-US")} blocked</span>
               </div>
             </div>
           </div>
         ) : (
           <p className="py-8 text-center font-mono text-xs text-graphite">
-            // sin datos suficientes para calcular alineamiento
+            // not enough data to calculate alignment
           </p>
         )}
       </div>
 
-      {/* Hourly volume — gives the eye a "today vs. earlier" before drilling in */}
       <HourlyVolume hourly={data.hourly} range={range} />
 
-      {/* Secondary KPIs */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <KpiCard label="total requests" value={data.total.toLocaleString("es-AR")} />
-        <KpiCard label="bloqueados" value={blocked.toLocaleString("es-AR")} />
+        <KpiCard label="total requests" value={data.total.toLocaleString("en-US")} />
+        <KpiCard label="blocked" value={blocked.toLocaleString("en-US")} />
         <KpiCard
           label="block rate"
-          value={data.total > 0 ? `${((blocked / data.total) * 100).toFixed(1)}%` : "—"}
+          value={data.total > 0 ? `${((blocked / data.total) * 100).toFixed(1)}%` : "-"}
         />
-        <KpiCard label="latencia prom." value={data.avgLatencyMs > 0 ? `${data.avgLatencyMs} ms` : "—"} />
+        <KpiCard label="avg latency" value={data.avgLatencyMs > 0 ? `${data.avgLatencyMs} ms` : "-"} />
       </div>
 
-      {/* Action breakdown */}
       <div
         className="border border-graphite-dark/15 bg-paper p-5"
         style={{ borderRadius: "var(--radius)" }}
       >
         <p className="mb-4 font-mono text-[11px] uppercase tracking-wider text-graphite">
-          // acción · distribución
+          // action distribution
         </p>
         <div className="flex flex-col gap-3">
           {(["BLOCK", "REDACT", "WARN", "LOG"] as const).map((action) => {
@@ -194,22 +205,17 @@ export function AnalyticsPanel({ initial }: { initial: AnalyticsData }) {
             const filterable = stats.count > 0;
             const row = (
               <div className="flex items-center gap-3">
-                <span
-                  className={`w-14 font-mono text-[11px] uppercase ${style.text}`}
-                >
+                <span className={`w-14 font-mono text-[11px] uppercase ${style.text}`}>
                   {action}
                 </span>
-                <div
-                  className="relative h-2 flex-1 bg-paper-soft/60"
-                  style={{ borderRadius: "2px" }}
-                >
+                <div className="relative h-2 flex-1 bg-paper-soft/60" style={{ borderRadius: "2px" }}>
                   <div
                     className={`absolute inset-y-0 left-0 ${style.bar} transition-all duration-500`}
                     style={{ width: `${pct}%`, borderRadius: "2px" }}
                   />
                 </div>
                 <span className="w-12 text-right font-mono text-[11px] text-graphite">
-                  {stats.count.toLocaleString("es-AR")}
+                  {stats.count.toLocaleString("en-US")}
                 </span>
                 <span className="hidden w-20 text-right font-mono text-[11px] text-graphite sm:block">
                   ~{stats.avgLatencyMs} ms
@@ -229,7 +235,7 @@ export function AnalyticsPanel({ initial }: { initial: AnalyticsData }) {
                 key={action}
                 href={`/admin/events?action=${action}`}
                 className="-mx-2 rounded px-2 py-1 transition-colors hover:bg-paper-soft/60"
-                title={`ver eventos · ${action}`}
+                title={`view events · ${action}`}
               >
                 {row}
               </Link>
@@ -242,14 +248,13 @@ export function AnalyticsPanel({ initial }: { initial: AnalyticsData }) {
         </div>
       </div>
 
-      {/* Top policies */}
       {data.topPolicies.length > 0 && (
         <div
           className="border border-graphite-dark/15 bg-paper p-5"
           style={{ borderRadius: "var(--radius)" }}
         >
           <p className="mb-4 font-mono text-[11px] uppercase tracking-wider text-graphite">
-            // políticas · más activadas
+            // top triggered policies
           </p>
           <div className="flex flex-col gap-2">
             {data.topPolicies.map((p, i) => {
@@ -300,10 +305,7 @@ function HourlyVolume({
   hourly: { hour: string; count: number }[];
   range: Range;
 }) {
-  const total = useMemo(
-    () => hourly.reduce((a, b) => a + b.count, 0),
-    [hourly],
-  );
+  const total = useMemo(() => hourly.reduce((a, b) => a + b.count, 0), [hourly]);
   const { peakIdx, peakCount, peakHour } = useMemo(() => {
     let idx = -1;
     let count = 0;
@@ -335,16 +337,16 @@ function HourlyVolume({
     >
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <span className="font-mono text-[11px] uppercase tracking-wider text-graphite">
-          // volumen por hora
+          // hourly volume
         </span>
         <span className="font-mono text-[11px] uppercase tracking-wider text-graphite">
-          {total.toLocaleString("es-AR")} requests · pico {peakCount}
+          {total.toLocaleString("en-US")} requests · peak {peakCount}
           {peakHour ? ` · ${formatPeak(peakHour, range)}` : ""}
         </span>
       </div>
       {hourly.length === 0 ? (
         <p className="py-2 font-mono text-[11px] text-graphite">
-          // sin datos en el rango seleccionado
+          // no data in selected range
         </p>
       ) : (
         <>
@@ -399,7 +401,7 @@ function formatTick(iso: string, range: Range): string {
   if (range === "24h") {
     return `${String(d.getHours()).padStart(2, "0")}:00`;
   }
-  return d.toLocaleDateString("es-AR", { day: "numeric", month: "short" });
+  return d.toLocaleDateString("en-US", { day: "numeric", month: "short" });
 }
 
 function formatPeak(iso: string, range: Range): string {
@@ -407,5 +409,5 @@ function formatPeak(iso: string, range: Range): string {
   if (range === "24h") {
     return `${String(d.getHours()).padStart(2, "0")}:00`;
   }
-  return d.toLocaleDateString("es-AR", { day: "numeric", month: "short" });
+  return d.toLocaleDateString("en-US", { day: "numeric", month: "short" });
 }

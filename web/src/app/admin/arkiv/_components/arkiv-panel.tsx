@@ -161,14 +161,14 @@ export function ArkivPanel() {
       <Pane caption="arkiv smoke" padding="lg">
         <h2 className="text-xl font-semibold tracking-tight">Probar escritura end-to-end</h2>
         <p className="text-sm leading-relaxed text-graphite-dark">
-          Ejecuta el flujo completo policy → prompt review → decision y devuelve los keys
+          Ejecuta el flujo completo policy â†’ prompt review â†’ decision y devuelve los keys
           creados para validar que backend y Arkiv estan conectados.
         </p>
 
         <Field
           label="prompt de prueba"
           htmlFor="arkiv-smoke-prompt"
-          hint="usa un prompt con credenciales para probar BLOCK/REDACT"
+          hint="usa un prompt con credentials para probar BLOCK/REDACT"
           full
         >
           {({ id }) => (
@@ -192,7 +192,7 @@ export function ArkivPanel() {
         </div>
 
         {smokeError ? (
-          <p className="font-mono text-xs text-red-700">// error · {smokeError}</p>
+          <p className="font-mono text-xs text-red-700">// error Â· {smokeError}</p>
         ) : null}
 
         {smokeResult ? (
@@ -202,7 +202,7 @@ export function ArkivPanel() {
                 // action
               </span>
               <span className="font-mono text-xs text-ink">
-                {smokeResult.action} · risk {smokeResult.riskScore}
+                {smokeResult.action} Â· risk {smokeResult.riskScore}
               </span>
             </div>
 
@@ -226,7 +226,7 @@ export function ArkivPanel() {
           <div>
             <h2 className="text-xl font-semibold tracking-tight">Estado del setup</h2>
             <p className="text-sm leading-relaxed text-graphite-dark">
-              Esto automatiza la checklist: te dice si ya estás listo para correr el flujo real o qué te falta.
+              Esto automatiza la checklist: te dice si ya estÃ¡s listo para correr el flujo real o quÃ© te fhigh.
             </p>
           </div>
           <Button onClick={refreshSetupStatus} disabled={setupLoading} size="sm">
@@ -234,7 +234,7 @@ export function ArkivPanel() {
           </Button>
         </div>
 
-        {setupError ? <p className="font-mono text-xs text-red-700">// error · {setupError}</p> : null}
+        {setupError ? <p className="font-mono text-xs text-red-700">// error Â· {setupError}</p> : null}
 
         {setupResult ? (
           <div className="space-y-3">
@@ -340,12 +340,12 @@ export function ArkivPanel() {
               rel="noopener noreferrer"
               className="font-mono text-[11px] uppercase tracking-[0.22em] text-ink underline underline-offset-4"
             >
-              abrir en explorer →
+              open in explorer â†’
             </a>
           ) : null}
         </div>
 
-        {queryError ? <p className="font-mono text-xs text-red-700">// error · {queryError}</p> : null}
+        {queryError ? <p className="font-mono text-xs text-red-700">// error Â· {queryError}</p> : null}
 
         {queryResult ? (
           <div className="border border-graphite-dark/20" style={{ borderRadius: "var(--radius)" }}>
@@ -360,7 +360,7 @@ export function ArkivPanel() {
                     owner: {entity.owner ?? "-"}
                   </p>
                   <p className="font-mono text-[11px] text-graphite break-all">
-                    attrs: {entity.attributes.map((a) => `${a.key}=${String(a.value)}`).join(" · ")}
+                    attrs: {entity.attributes.map((a) => `${a.key}=${String(a.value)}`).join(" Â· ")}
                   </p>
                 </li>
               ))}
@@ -386,7 +386,7 @@ function ArkivLinkLine({ label, href, value }: { label: string; href: string; va
           rel="noopener noreferrer"
           className="font-mono text-[11px] uppercase tracking-[0.22em] text-ink underline underline-offset-4"
         >
-          explorer →
+          explorer â†’
         </a>
       </div>
     </div>

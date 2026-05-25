@@ -66,7 +66,7 @@ export function ApiKeysPanel({
       const data = (await res.json()) as CreateResult | { error?: string };
       if (!res.ok || !("secret" in data)) {
         const message = "error" in data ? data.error : null;
-        setToast({ kind: "error", message: message ?? "no pude crear la API key" });
+        setToast({ kind: "error", message: message ?? "could not create the API key" });
         return;
       }
       setCreated(data);
@@ -80,9 +80,9 @@ export function ApiKeysPanel({
   async function copy(value: string) {
     try {
       await navigator.clipboard.writeText(value);
-      setToast({ kind: "success", message: "copiado al portapapeles" });
+      setToast({ kind: "success", message: "copied to clipboard" });
     } catch {
-      setToast({ kind: "error", message: `No pude copiar. Selecciona manualmente: ${value}` });
+      setToast({ kind: "error", message: `Could not copy. Select manually: ${value}` });
     }
   }
 
@@ -93,19 +93,19 @@ export function ApiKeysPanel({
     const res = await fetch(`/api/admin/api-keys/${key.id}`, { method: "DELETE" });
     if (!res.ok) {
       const data = await res.json().catch(() => null);
-      setToast({ kind: "error", message: data?.error ?? "no pude revocar la key" });
+      setToast({ kind: "error", message: data?.error ?? "could not revoke the key" });
       return;
     }
-    setToast({ kind: "success", message: "API key revocada" });
+    setToast({ kind: "success", message: "API key revoked" });
     await refresh();
   }
 
   const revokeConfig: ConfirmConfig | null = pendingRevoke
     ? {
-        title: `Revocar ${pendingRevoke.label ?? "API key"}?`,
-        body: "El cliente que use este secret deja de poder pasar por el interceptor. La evidencia historica se mantiene.",
-        confirmLabel: "Revocar",
-        cancelLabel: "Cancelar",
+        title: `Revoke ${pendingRevoke.label ?? "API key"}?`,
+        body: "Any client using this secret will stop passing through the interceptor. Historical evidence remains intact.",
+        confirmLabel: "Revoke",
+        cancelLabel: "Cancel",
         destructive: true,
       }
     : null;
@@ -126,13 +126,13 @@ export function ApiKeysPanel({
         style={{ borderRadius: "var(--radius)" }}
       >
         <span className="font-mono text-xs uppercase tracking-wider text-graphite">
-          // nueva runtime key
+          // new runtime key
         </span>
         <div className="flex flex-col gap-3 md:flex-row">
           <input
             value={label}
             onChange={(event) => setLabel(event.target.value)}
-            placeholder="cliente demo / dapp / wallet agent"
+            placeholder="demo client / dapp / wallet agent"
             className="flex-1 border border-graphite-dark/30 bg-paper px-3 py-2 font-mono text-sm focus:border-ink focus:outline-none"
           />
           <button
@@ -141,12 +141,12 @@ export function ApiKeysPanel({
             className="inline-flex items-center bg-ink px-5 py-2.5 font-mono text-xs uppercase tracking-wider text-paper transition-colors hover:bg-graphite-dark disabled:opacity-60"
             style={{ borderRadius: "var(--radius)" }}
           >
-            {submitting ? "generando..." : "generar secret"}
+            {submitting ? "generating..." : "generate secret"}
           </button>
         </div>
         <p className="font-mono text-[11px] leading-relaxed text-graphite">
-          // este secret identifica a la org y permite que el sitio cliente use
-          ArkivGate como gateway de prompts, pagos x402 y wallets.
+          // this secret identifies the org and lets the client use ArkivGate
+          as the gateway for prompts, x402 payments, and wallets.
         </p>
       </form>
 
@@ -157,15 +157,15 @@ export function ApiKeysPanel({
         >
           <div>
             <span className="font-mono text-xs uppercase tracking-wider text-graphite">
-              // secret generado
+              // generated secret
             </span>
             <p className="mt-2 text-sm leading-relaxed text-graphite-dark">
-              Guardalo ahora. Despues solo vas a poder revocarlo y crear otro.
+              Store it now. Later you can only revoke it and create another one.
             </p>
           </div>
           <CopyBlock label="secret" value={created.secret} onCopy={copy} strong />
-          <CopyBlock label="base url compatible Anthropic" value={baseUrl} onCopy={copy} />
-          <CopyBlock label="env para el cliente" value={snippets.env} onCopy={copy} />
+          <CopyBlock label="Anthropic-compatible base URL" value={baseUrl} onCopy={copy} />
+          <CopyBlock label="client env" value={snippets.env} onCopy={copy} />
         </div>
       )}
 
@@ -174,27 +174,27 @@ export function ApiKeysPanel({
         style={{ borderRadius: "var(--radius)" }}
       >
         <IntegrationCard
-          title="1. crear secret"
-          body="Generas una runtime key por cliente, demo o agente. No se vuelve a mostrar."
+          title="1. create secret"
+          body="Generate one runtime key per customer, demo, or agent. It is never shown again."
         />
         <IntegrationCard
-          title="2. configurar cliente"
-          body="El cliente usa la base URL /cli/<secret> para que todo request pase por ArkivGate."
+          title="2. configure client"
+          body="The client uses the /cli/<secret> base URL so every request goes through ArkivGate."
         />
         <IntegrationCard
-          title="3. auditar en admin"
-          body="Events, analytics y Arkiv muestran que decision se tomo y por que."
+          title="3. audit in admin"
+          body="Events, analytics, and Arkiv show what decision was made and why."
         />
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
         <CopyBlock label="curl demo" value={snippets.curl} onCopy={copy} multiline />
-        <CopyBlock label="validar secret" value={snippets.validate} onCopy={copy} multiline />
+        <CopyBlock label="validate secret" value={snippets.validate} onCopy={copy} multiline />
       </div>
 
       <div className="flex flex-col gap-3">
         <span className="font-mono text-xs uppercase tracking-wider text-graphite">
-          // keys emitidas
+          // issued keys
         </span>
         <div
           className="overflow-hidden border border-graphite-dark/20"
@@ -202,7 +202,7 @@ export function ApiKeysPanel({
         >
           {keys.length === 0 ? (
             <div className="p-5 text-sm text-graphite-dark">
-              Todavia no hay API keys para esta org.
+              No API keys have been issued for this org yet.
             </div>
           ) : (
             <ul>
@@ -219,12 +219,12 @@ export function ApiKeysPanel({
                         {key.label ?? "runtime key"}
                       </span>
                       <span className="font-mono text-[11px] uppercase tracking-wider text-graphite">
-                        // {key.revokedAt ? "revocada" : "activa"}
+                        // {key.revokedAt ? "revoked" : "active"}
                       </span>
                     </div>
                     <p className="mt-1 font-mono text-[11px] leading-relaxed text-graphite">
-                      owner {key.ownerEmail} · creada {formatDate(key.createdAt)}
-                      {key.lastUsedAt ? ` · ultimo uso ${formatDate(key.lastUsedAt)}` : ""}
+                      owner {key.ownerEmail} · created {formatDate(key.createdAt)}
+                      {key.lastUsedAt ? ` · last used ${formatDate(key.lastUsedAt)}` : ""}
                     </p>
                   </div>
                   {!key.revokedAt ? (
@@ -233,7 +233,7 @@ export function ApiKeysPanel({
                       onClick={() => setPendingRevoke(key)}
                       className="justify-self-start font-mono text-[11px] uppercase tracking-wider text-graphite transition-colors hover:font-semibold hover:text-ink md:justify-self-end"
                     >
-                      revocar
+                      revoke
                     </button>
                   ) : null}
                 </li>
@@ -273,7 +273,7 @@ function CopyBlock({
           onClick={() => onCopy(value)}
           className="font-mono text-[11px] uppercase tracking-wider text-graphite hover:text-ink"
         >
-          copiar
+          copy
         </button>
       </div>
       <code
