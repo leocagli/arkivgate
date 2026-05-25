@@ -1,5 +1,4 @@
-// Shared helpers for policy CRUD. Lives next to lib/prisma so route handlers
-// and server components consume the same shape and slugifier.
+// Client-safe policy types/constants shared by admin UI and API payloads.
 
 import type { Policy } from "@prisma/client";
 
@@ -52,7 +51,7 @@ export function slugify(input: string): string {
   return input
     .toLowerCase()
     .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "")
+    .replace(/[\u0300-\u036f]/g, "")
     .replace(/[^a-z0-9\s-]/g, "")
     .trim()
     .replace(/\s+/g, "-")

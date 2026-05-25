@@ -3,8 +3,7 @@
 // ya tenés y devuelve solo los nuevos.
 import type { NextRequest } from "next/server";
 import { getAdminSession } from "@/lib/admin-session";
-import { toEventDTO } from "@/lib/events";
-import { prisma } from "@/lib/prisma";
+import { listEvents } from "@/lib/events";
 
 const ALLOWED_ACTIONS = ["BLOCK", "REDACT", "WARN", "LOG"] as const;
 
@@ -28,15 +27,12 @@ export async function GET(request: NextRequest) {
   const limitRaw = Number(url.searchParams.get("limit") ?? "100");
   const limit = Number.isFinite(limitRaw) ? Math.min(Math.max(limitRaw, 1), 200) : 100;
 
-  const rows = await prisma.interaction.findMany({
-    where: {
-      orgId: session.orgId,
-      ...(sinceValid ? { createdAt: { gt: sinceValid } } : {}),
-      ...(action ? { action } : {}),
-    },
-    orderBy: { createdAt: "desc" },
-    take: limit,
+  const events = await listEvents({
+    orgId: session.orgId,
+    since: sinceValid,
+    action,
+    limit,
   });
 
-  return Response.json({ events: rows.map(toEventDTO) });
+  return Response.json({ events });
 }

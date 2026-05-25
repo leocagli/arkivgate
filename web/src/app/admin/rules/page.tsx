@@ -3,8 +3,7 @@
 // ya pasa por el judge con la nueva regla.
 /* eslint-disable react/jsx-no-comment-textnodes */
 import { getAdminSession } from "@/lib/admin-session";
-import { toRuleDTO } from "@/lib/policies";
-import { prisma } from "@/lib/prisma";
+import { listRules } from "@/lib/policies-server";
 import { RulesPanel } from "./_components/rules-panel";
 import { GdocImportForm } from "@/components/gdoc-import-form";
 
@@ -15,11 +14,7 @@ export default async function RulesPage() {
   if (!session) {
     return null;
   }
-  const rows = await prisma.policy.findMany({
-    where: { orgId: session.orgId },
-    orderBy: [{ isActive: "desc" }, { createdAt: "desc" }],
-  });
-  const initialRules = rows.map(toRuleDTO);
+  const initialRules = await listRules(session.orgId);
 
   return (
     <section>

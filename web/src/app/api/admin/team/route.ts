@@ -3,19 +3,15 @@
 // ahora, pero gateamos igual por defensa).
 import type { NextRequest } from "next/server";
 import { getAdminSession, requireAdminRole } from "@/lib/admin-session";
-import { prisma } from "@/lib/prisma";
-import { isValidEmail, toMemberDTO } from "@/lib/team";
+import { isValidEmail } from "@/lib/team";
+import { createTeamMember, listTeamMembers } from "@/lib/team-server";
 
 export async function GET() {
   const session = await getAdminSession();
   if (!session) return Response.json({ error: "unauthorized" }, { status: 401 });
 
-  const rows = await prisma.member.findMany({
-    where: { orgId: session.orgId },
-    include: { user: { select: { emailVerified: true } } },
-    orderBy: [{ role: "asc" }, { createdAt: "asc" }],
-  });
-  return Response.json({ members: rows.map(toMemberDTO) });
+  const members = await listTeamMembers(session.orgId);
+  return Response.json({ members });
 }
 
 type CreateBody = {
@@ -34,15 +30,12 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const created = await prisma.member.create({
-      data: {
-        orgId: session.orgId,
-        email,
-        role: "dev",
-      },
-      include: { user: { select: { emailVerified: true } } },
+    const member = await createTeamMember({
+      orgId: session.orgId,
+      email,
+      role: "dev",
     });
-    return Response.json({ member: toMemberDTO(created) }, { status: 201 });
+    return Response.json({ member }, { status: 201 });
   } catch (err) {
     const message = err instanceof Error ? err.message : "unknown error";
     if (message.includes("Unique constraint")) {

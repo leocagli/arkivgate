@@ -32,8 +32,11 @@ export default auth((request) => {
   // ----- Modo "Google configurado" -----
   if (useGoogleAuth) {
     if (!isAdminPath || isPublicAdmin) return NextResponse.next();
+    // Las APIs admin validan auth en route handlers Node con `auth()`.
+    // Si las bloqueamos en proxy/Edge, el JWT stale sin orgId corta flows
+    // que el servidor puede resolver via onboarding/fallback REST.
+    if (isApi) return NextResponse.next();
     if (request.auth) return NextResponse.next();
-    if (isApi) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
     const login = request.nextUrl.clone();
     login.pathname = AUTH_LOGIN;
     login.search = "";

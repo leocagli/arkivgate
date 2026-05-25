@@ -42,7 +42,20 @@ export async function getAdminSession(): Promise<AdminSession | null> {
       // ensureAdminSession antes de renderizar; si llegamos acá sin org es
       // porque el caller es una página que no quiere/puede onboardear (ej.
       // /cli/connect, que tiene su propio flujo). Tratamos como no logueado.
-      return null;
+      const userId = (session.user as { id?: string }).id;
+      if (!userId) return null;
+      const resolved = await createOrgForNewAdmin({
+        userId,
+        email: session.user.email,
+        name: session.user.name,
+      });
+      return {
+        orgId: resolved.orgId,
+        email: session.user.email,
+        role: resolved.role,
+        name: session.user.name,
+        image: session.user.image,
+      };
     }
     return {
       orgId: session.user.orgId,

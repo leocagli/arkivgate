@@ -1,8 +1,7 @@
 // /admin/events — feed live de interactions del proxy.
 /* eslint-disable react/jsx-no-comment-textnodes */
 import { getAdminSession } from "@/lib/admin-session";
-import { toEventDTO } from "@/lib/events";
-import { prisma } from "@/lib/prisma";
+import { listEvents } from "@/lib/events";
 import { EventsFeed } from "./_components/events-feed";
 
 export const dynamic = "force-dynamic";
@@ -11,12 +10,7 @@ export default async function EventsPage() {
   const session = await getAdminSession();
   if (!session) return null;
 
-  const rows = await prisma.interaction.findMany({
-    where: { orgId: session.orgId },
-    orderBy: { createdAt: "desc" },
-    take: 100,
-  });
-  const initialEvents = rows.map(toEventDTO);
+  const initialEvents = await listEvents({ orgId: session.orgId, limit: 100 });
 
   return (
     <section>

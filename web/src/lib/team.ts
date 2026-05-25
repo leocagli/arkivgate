@@ -1,4 +1,4 @@
-// Helpers compartidos entre /admin/team y la API de team.
+// Client-safe helpers shared by /admin/team UI and API payloads.
 
 import type { Member } from "@prisma/client";
 
@@ -6,7 +6,7 @@ export type MemberDTO = {
   id: string;
   email: string;
   role: "admin" | "dev";
-  // null si todavía no logueó por primera vez (fue invitado pero no activó).
+  // null if the invited member has not logged in yet.
   linkedAt: string | null;
   createdAt: string;
 };
@@ -16,8 +16,6 @@ export function toMemberDTO(m: Member & { user?: { emailVerified: Date | null } 
     id: m.id,
     email: m.email,
     role: m.role as "admin" | "dev",
-    // Usamos createdAt del user vinculado para distinguir "pendiente" vs
-    // "activo". Si no hay user, está pendiente.
     linkedAt: m.userId
       ? m.user?.emailVerified?.toISOString() ?? new Date(0).toISOString()
       : null,
@@ -26,6 +24,5 @@ export function toMemberDTO(m: Member & { user?: { emailVerified: Date | null } 
 }
 
 export function isValidEmail(value: string): boolean {
-  // No regex perfecta, pero suficiente para feedback de UI antes del backend.
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
 }

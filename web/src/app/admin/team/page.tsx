@@ -4,8 +4,7 @@
 /* eslint-disable react/jsx-no-comment-textnodes */
 
 import { ensureAdminSession } from "@/lib/admin-session";
-import { prisma } from "@/lib/prisma";
-import { toMemberDTO } from "@/lib/team";
+import { listTeamMembers } from "@/lib/team-server";
 import { TeamPanel } from "./_components/team-panel";
 
 export const dynamic = "force-dynamic";
@@ -14,12 +13,7 @@ export default async function TeamPage() {
   const session = await ensureAdminSession();
   if (!session) return null;
 
-  const rows = await prisma.member.findMany({
-    where: { orgId: session.orgId },
-    include: { user: { select: { emailVerified: true } } },
-    orderBy: [{ role: "asc" }, { createdAt: "asc" }],
-  });
-  const initial = rows.map(toMemberDTO);
+  const initial = await listTeamMembers(session.orgId);
 
   return (
     <section>

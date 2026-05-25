@@ -1,8 +1,8 @@
-// DELETE /api/admin/team/[id] — remover member de la org actual.
-// No se puede eliminar al último admin (te dejarías sin acceso).
+// DELETE /api/admin/team/[id] - remove a member from the current org.
+// The helper guards against deleting the last admin.
 import type { NextRequest } from "next/server";
 import { requireAdminRole } from "@/lib/admin-session";
-import { prisma } from "@/lib/prisma";
+import { deleteTeamMember } from "@/lib/team-server";
 
 type RouteParams = { params: Promise<{ id: string }> };
 
@@ -16,23 +16,13 @@ export async function DELETE(
 
   const { id } = await ctx.params;
 
-  const target = await prisma.member.findFirst({
-    where: { id, orgId: session.orgId },
-  });
-  if (!target) return Response.json({ error: "member no encontrado" }, { status: 404 });
-
-  if (target.role === "admin") {
-    const adminCount = await prisma.member.count({
-      where: { orgId: session.orgId, role: "admin" },
-    });
-    if (adminCount <= 1) {
-      return Response.json(
-        { error: "no podés eliminar al único admin de la org" },
-        { status: 400 },
-      );
-    }
+  try {
+    const deleted = await deleteTeamMember(session.orgId, id);
+    if (!deleted) return Response.json({ error: "member no encontrado" }, { status: 404 });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "unknown error";
+    return Response.json({ error: message }, { status: 400 });
   }
 
-  await prisma.member.delete({ where: { id } });
   return new Response(null, { status: 204 });
 }

@@ -1,4 +1,6 @@
 import type { Interaction } from "@prisma/client";
+import { prisma } from "@/lib/prisma";
+import { hasSupabaseRestConfig, restEq, supabaseRestFetch } from "@/lib/supabase-rest";
 
 export type PolicyHitRecord = {
   layer: "regex" | "pattern" | "nl";
@@ -138,4 +140,101 @@ export function toEventDTO(row: Interaction): EventDTO {
     arkiv,
     createdAt: row.createdAt.toISOString(),
   };
+}
+
+type RestInteraction = {
+  id: string;
+  trace_id: string;
+  action: EventDTO["action"];
+  reason: string;
+  request_model: string;
+  prompt: string;
+  policy_hits: PolicyHitRecord[] | null;
+  latency_total_ms: number;
+  latency_by_layer: unknown;
+  upstream_status: number | null;
+  created_at: string;
+};
+
+function restInteractionToDTO(row: RestInteraction): EventDTO {
+  const latencyByLayer = row.latency_by_layer;
+  const arkiv = isRecord(latencyByLayer) ? extractArkiv(latencyByLayer.arkiv) : null;
+  const bridgePersistMs =
+    isRecord(latencyByLayer) && typeof latencyByLayer.bridgePersistMs === "number"
+      ? latencyByLayer.bridgePersistMs
+      : null;
+  const arkivPersistMs =
+    isRecord(latencyByLayer) && typeof latencyByLayer.arkivPersistMs === "number"
+      ? latencyByLayer.arkivPersistMs
+      : null;
+  const arkivStatus =
+    isRecord(latencyByLayer) &&
+    (latencyByLayer.arkivStatus === "pending" ||
+      latencyByLayer.arkivStatus === "ok" ||
+      latencyByLayer.arkivStatus === "error")
+      ? latencyByLayer.arkivStatus
+      : null;
+  const arkivError =
+    isRecord(latencyByLayer) && typeof latencyByLayer.arkivError === "string"
+      ? latencyByLayer.arkivError
+      : null;
+
+  return {
+    id: row.id,
+    traceId: row.trace_id,
+    action: row.action,
+    reason: row.reason,
+    requestModel: row.request_model,
+    prompt: row.prompt,
+    policyHits: row.policy_hits ?? [],
+    latencyTotalMs: row.latency_total_ms,
+    latencyByLayer: extractLatencyByLayer(latencyByLayer),
+    bridgePersistMs,
+    arkivPersistMs,
+    arkivStatus,
+    upstreamStatus: row.upstream_status,
+    arkivError,
+    arkiv,
+    createdAt: new Date(row.created_at).toISOString(),
+  };
+}
+
+type ListEventsInput = {
+  orgId: string;
+  since?: Date | null;
+  action?: EventDTO["action"] | null;
+  limit?: number;
+};
+
+async function listEventsWithRest(input: ListEventsInput): Promise<EventDTO[]> {
+  const params = [
+    "select=id,trace_id,action,reason,request_model,prompt,policy_hits,latency_total_ms,latency_by_layer,upstream_status,created_at",
+    `org_id=eq.${restEq(input.orgId)}`,
+    "order=created_at.desc",
+    `limit=${input.limit ?? 100}`,
+  ];
+  if (input.since) params.push(`created_at=gt.${encodeURIComponent(input.since.toISOString())}`);
+  if (input.action) params.push(`action=eq.${input.action}`);
+
+  const rows = await supabaseRestFetch<RestInteraction[]>(`/interactions?${params.join("&")}`);
+  return rows.map(restInteractionToDTO);
+}
+
+export async function listEvents(input: ListEventsInput): Promise<EventDTO[]> {
+  try {
+    const rows = await prisma.interaction.findMany({
+      where: {
+        orgId: input.orgId,
+        ...(input.since ? { createdAt: { gt: input.since } } : {}),
+        ...(input.action ? { action: input.action } : {}),
+      },
+      orderBy: { createdAt: "desc" },
+      take: input.limit ?? 100,
+    });
+    return rows.map(toEventDTO);
+  } catch (err) {
+    if (!hasSupabaseRestConfig()) throw err;
+    console.warn("[events] Prisma list failed, falling back to Supabase REST:", err);
+    return listEventsWithRest(input);
+  }
 }

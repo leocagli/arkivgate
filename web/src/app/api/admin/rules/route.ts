@@ -8,23 +8,19 @@ import {
   POLICY_DOMAINS,
   SEVERITIES,
   slugify,
-  toRuleDTO,
   type AdminAction,
   type PolicyDomain,
   type Severity,
 } from "@/lib/policies";
-import { prisma } from "@/lib/prisma";
+import { createRule, listRules } from "@/lib/policies-server";
 
 export async function GET() {
   const session = await getAdminSession();
   if (!session) {
     return Response.json({ error: "unauthorized" }, { status: 401 });
   }
-  const rows = await prisma.policy.findMany({
-    where: { orgId: session.orgId },
-    orderBy: [{ isActive: "desc" }, { createdAt: "desc" }],
-  });
-  return Response.json({ rules: rows.map(toRuleDTO) });
+  const rules = await listRules(session.orgId);
+  return Response.json({ rules });
 }
 
 type CreateBody = {
@@ -67,20 +63,17 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const created = await prisma.policy.create({
-      data: {
-        orgId: session.orgId,
-        slug,
-        domain: domain!,
-        layer: "nl",
-        rule: ruleText,
-        defaultAction: action!,
-        severity,
-        source: "admin",
-        isActive: true,
-      },
+    const rule = await createRule({
+      orgId: session.orgId,
+      slug,
+      domain: domain!,
+      layer: "nl",
+      rule: ruleText,
+      defaultAction: action!,
+      severity,
+      source: "admin",
     });
-    return Response.json({ rule: toRuleDTO(created) }, { status: 201 });
+    return Response.json({ rule }, { status: 201 });
   } catch (err) {
     const message = err instanceof Error ? err.message : "unknown error";
     if (message.includes("Unique constraint")) {
