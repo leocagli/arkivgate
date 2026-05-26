@@ -1,5 +1,5 @@
 import type { NextRequest } from "next/server";
-import { getAdminSession, requireAdminRole } from "@/lib/admin-session";
+import { ensureAdminSession, getAdminSession } from "@/lib/admin-session";
 import { createRuntimeApiKey, listRuntimeApiKeys } from "@/lib/api-keys-server";
 
 export async function GET() {
@@ -15,18 +15,28 @@ type CreateBody = {
 };
 
 export async function POST(request: NextRequest) {
-  const auth = await requireAdminRole();
-  if (!auth.ok) return auth.response;
-  const session = auth.session;
+  const session = await ensureAdminSession();
+  if (!session) return Response.json({ error: "unauthorized" }, { status: 401 });
+  if (session.role !== "admin") return Response.json({ error: "forbidden" }, { status: 403 });
 
   const body = (await request.json().catch(() => ({}))) as CreateBody;
   const label = typeof body.label === "string" ? body.label : null;
 
-  const result = await createRuntimeApiKey({
-    orgId: session.orgId,
-    email: session.email,
-    label,
-  });
+  try {
+    const result = await createRuntimeApiKey({
+      orgId: session.orgId,
+      email: session.email,
+      label,
+    });
 
-  return Response.json(result, { status: 201 });
+    return Response.json(result, { status: 201 });
+  } catch (error) {
+    return Response.json(
+      {
+        error: "could not create the API key",
+        detail: error instanceof Error ? error.message : "unknown error",
+      },
+      { status: 500 },
+    );
+  }
 }

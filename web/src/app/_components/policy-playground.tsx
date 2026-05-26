@@ -139,6 +139,8 @@ export function PolicyPlayground() {
     promptPolicy?: PromptPolicyResult;
     finalDecision?: FinalDecision;
     arkiv?: {
+      error?: string;
+      detail?: string;
       policyKey?: string;
       policyTxHash?: string;
       agentEntityKey?: string;
@@ -233,11 +235,19 @@ export function PolicyPlayground() {
     }
   }
 
-  async function runLiveTest(promptOverride?: string, source: "sample" | "manual" = "manual") {
+  async function runLiveTest(
+    promptOverride?: string,
+    source: "sample" | "manual" = "manual",
+    options: { showAttemptStatus?: boolean } = {},
+  ) {
     const promptToTest = (promptOverride ?? input).trim();
     if (!promptToTest || runningLiveTest) return;
 
-    setAttemptStatus({ prompt: promptToTest, source });
+    if (options.showAttemptStatus === false) {
+      setAttemptStatus(null);
+    } else {
+      setAttemptStatus({ prompt: promptToTest, source });
+    }
     setRunningLiveTest(true);
     setX402Phase("requesting");
     setLiveResult(null);
@@ -278,6 +288,8 @@ export function PolicyPlayground() {
         promptPolicy?: PromptPolicyResult;
         finalDecision?: FinalDecision;
         arkiv?: {
+          error?: string;
+          detail?: string;
           policyKey?: string;
           policyTxHash?: string;
           agentEntityKey?: string;
@@ -351,6 +363,16 @@ export function PolicyPlayground() {
   function runPresetAttempt(preset: string) {
     setInput(preset);
     void runLiveTest(preset, "sample");
+  }
+
+  function runPaidAgent() {
+    const paymentOrder = [
+      `Authorize x402 payment for ${X402_RESOURCE}.`,
+      `Payer agent: ${effectivePayer}.`,
+      "Evaluate the structured payment intent attached to this request.",
+    ].join(" ");
+
+    void runLiveTest(paymentOrder, "manual", { showAttemptStatus: false });
   }
 
   const showAttemptStatus = attemptStatus !== null;
@@ -494,6 +516,11 @@ export function PolicyPlayground() {
 
                   {liveResult.hint ? <p className="text-sm text-[#8a5f1f]">{liveResult.hint}</p> : null}
                   {liveResult.error ? <p className="text-sm text-[#8a2d2d]">{liveResult.error}: {liveResult.detail}</p> : null}
+                  {liveResult.arkiv?.error ? (
+                    <p className="text-sm text-[#8a5f1f]">
+                      Arkiv evidence pending: {liveResult.arkiv.detail ?? liveResult.arkiv.error}
+                    </p>
+                  ) : null}
                 </div>
               ) : null}
             </div>
@@ -636,12 +663,12 @@ export function PolicyPlayground() {
           </div>
           <button
             type="button"
-            onClick={() => void runLiveTest(undefined, "manual")}
-            disabled={runningLiveTest || input.trim().length === 0}
+            onClick={runPaidAgent}
+            disabled={runningLiveTest}
             className="border border-[#1b5a65]/25 bg-[#1b5a65] px-3 py-1.5 font-mono text-[11px] uppercase tracking-[0.12em] text-white transition-colors hover:bg-[#144a53] disabled:cursor-not-allowed disabled:opacity-60"
             style={{ borderRadius: "6px" }}
           >
-            {runningLiveTest ? "pagando..." : "run paid agent"}
+            {runningLiveTest ? "executing..." : "run paid agent"}
           </button>
         </div>
 
@@ -764,9 +791,23 @@ export function PolicyPlayground() {
           />
         </label>
 
-        {!liveResult ? (
-          <p className="text-sm text-graphite-dark">Ejecuta test real para validar la respuesta del interceptor con este prompt.</p>
-        ) : (
+        {runningLiveTest && !showAttemptStatus ? (
+          <div className="mb-4 space-y-2 border border-[#1b5a65]/15 bg-white p-4 text-sm text-graphite-dark" style={{ borderRadius: "6px" }}>
+            <p>Negotiating x402 payment order, evaluating payment policy, and persisting evidence on Arkiv...</p>
+            <div className="grid gap-2 text-xs md:grid-cols-4">
+              <StepPill active={x402Phase !== "idle"} label="request" />
+              <StepPill active={x402Phase === "challenged" || x402Phase === "signed" || x402Phase === "settled"} label="402" />
+              <StepPill active={x402Phase === "signed" || x402Phase === "settled"} label="signature" />
+              <StepPill active={x402Phase === "settled"} label="arkiv" />
+            </div>
+          </div>
+        ) : null}
+
+        {!liveResult && !runningLiveTest ? (
+          <p className="text-sm text-graphite-dark">
+            Run a paid agent execution to validate the x402 payment policy and persist the decision on Arkiv.
+          </p>
+        ) : liveResult ? (
           <div className="space-y-3">
             <div className="flex flex-wrap gap-2">
               <span className="border border-[#1b5a65]/25 bg-white px-2.5 py-1 font-mono text-[11px] uppercase tracking-[0.12em] text-[#1b5a65]" style={{ borderRadius: "6px" }}>
@@ -844,6 +885,11 @@ export function PolicyPlayground() {
             ) : null}
             {liveResult.hint ? <p className="text-sm text-[#8a5f1f]">{liveResult.hint}</p> : null}
             {liveResult.error ? <p className="text-sm text-[#8a2d2d]">{liveResult.error}: {liveResult.detail}</p> : null}
+            {liveResult.arkiv?.error ? (
+              <p className="text-sm text-[#8a5f1f]">
+                Arkiv evidence pending: {liveResult.arkiv.detail ?? liveResult.arkiv.error}
+              </p>
+            ) : null}
 
             {liveResult.arkiv?.promptReviewKey ? (
               <div className="space-y-2 border border-[#1b5a65]/15 bg-white p-3 text-xs text-graphite-dark" style={{ borderRadius: "6px" }}>
@@ -869,7 +915,7 @@ export function PolicyPlayground() {
               {JSON.stringify(liveResult.upstream ?? {}, null, 2)}
             </pre>
           </div>
-        )}
+        ) : null}
       </article>
     </section>
   );

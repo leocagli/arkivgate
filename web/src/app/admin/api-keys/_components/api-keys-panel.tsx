@@ -21,12 +21,13 @@ export function ApiKeysPanel({
   const [label, setLabel] = useState("");
   const [created, setCreated] = useState<CreateResult | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
   const [pendingRevoke, setPendingRevoke] = useState<RuntimeApiKeyDTO | null>(null);
   const [toast, setToast] = useState<ToastState>(null);
   const [, startTransition] = useTransition();
 
   const normalizedBase = interceptorBaseUrl.replace(/\/+$/, "");
-  const secret = created?.secret ?? "tk_REEMPLAZAR_CON_SECRET";
+  const secret = created?.secret ?? "tk_REPLACE_WITH_SECRET";
   const baseUrl = `${normalizedBase}/cli/${secret}`;
 
   const snippets = useMemo(
@@ -47,7 +48,7 @@ export function ApiKeysPanel({
   );
 
   async function refresh() {
-    const res = await fetch("/api/admin/api-keys", { cache: "no-store" });
+    const res = await fetch("/api/admin/api-keys", { cache: "no-store", credentials: "same-origin" });
     if (!res.ok) return;
     const data = (await res.json()) as { keys: RuntimeApiKeyDTO[] };
     startTransition(() => setKeys(data.keys));
@@ -57,21 +58,29 @@ export function ApiKeysPanel({
     event.preventDefault();
     setSubmitting(true);
     setCreated(null);
+    setFormError(null);
     try {
       const res = await fetch("/api/admin/api-keys", {
         method: "POST",
         headers: { "content-type": "application/json" },
+        credentials: "same-origin",
         body: JSON.stringify({ label: label.trim() || undefined }),
       });
-      const data = (await res.json()) as CreateResult | { error?: string };
-      if (!res.ok || !("secret" in data)) {
-        const message = "error" in data ? data.error : null;
+      const data = (await res.json().catch(() => null)) as
+        | CreateResult
+        | { error?: string; detail?: string }
+        | null;
+      if (!res.ok || !data || !("secret" in data)) {
+        const message = data && "error" in data ? [data.error, data.detail].filter(Boolean).join(": ") : null;
+        setFormError(message ?? "could not create the API key");
         setToast({ kind: "error", message: message ?? "could not create the API key" });
         return;
       }
       setCreated(data);
+      setKeys((prev) => [data.key, ...prev.filter((key) => key.id !== data.key.id)]);
       setLabel("");
       await refresh();
+      setToast({ kind: "success", message: "API key generated" });
     } finally {
       setSubmitting(false);
     }
@@ -148,6 +157,11 @@ export function ApiKeysPanel({
           // this secret identifies the org and lets the client use ArkivGate
           as the gateway for prompts, x402 payments, and wallets.
         </p>
+        {formError ? (
+          <p className="border border-red-900/20 bg-red-50 px-3 py-2 text-sm text-red-900" style={{ borderRadius: "var(--radius)" }}>
+            {formError}
+          </p>
+        ) : null}
       </form>
 
       {created && (
@@ -297,7 +311,7 @@ function IntegrationCard({ title, body }: { title: string; body: string }) {
 }
 
 function formatDate(value: string): string {
-  return new Intl.DateTimeFormat("es", {
+  return new Intl.DateTimeFormat("en-US", {
     day: "2-digit",
     month: "short",
     hour: "2-digit",
