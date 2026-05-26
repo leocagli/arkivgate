@@ -1,5 +1,6 @@
 ﻿<img width="1680" height="608" alt="‎project-logo png" src="https://github.com/user-attachments/assets/f227f9fd-d321-4c5b-bd48-3bb8e3ce4e2d" />
- # ArkivGate
+ 
+# ArkivGate
 
 ArkivGate is an AI governance platform for development teams and agent runtimes. It adds x402 payment gating, policy enforcement, auditable decision logs, and team controls around model interactions.
 
