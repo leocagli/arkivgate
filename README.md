@@ -10,7 +10,7 @@ ArkivGate now has a demo x402 rail across the project:
 
 - The web playground protects `/api/playground/interceptor-test` with a 402 challenge, signs a demo payment as an agent, reruns the request, and shows the payment response.
 - The Python interceptor can protect the real attributed runtime path, `POST /cli/<token>/v1/messages`, when `X402_DEMO_ENABLED=true`.
-- Paid executions run through two policy lanes: payment intent policy and prompt policy. Both produce `PASS`, `WARN`, `REDACT`, or `BLOCK`;![Uploading ‎project-logo.png.png…]()
+- Paid executions run through two policy lanes: payment intent policy and prompt policy. Both produce `PASS`, `WARN`, `REDACT`, or `BLOCK`;
  the final decision uses the highest severity.
 - Payment policy examples: moving 100% of wallet balance blocks, moving over 50% above recent behavior warns, exceeding a per-transaction cap redacts/caps the amount.
 - The x402 flow now also includes an Arkiv threat-intel lane inspired by community threat registries: the recipient address is checked against reported malicious addresses before execution. A confirmed approval-drain recipient blocks even if the payment amount is small.
