@@ -27,8 +27,7 @@ https://data.arkiv.network/?q=$key+=+%220x1eb559ef0a11f18c373ef55d468f0e038564a4
 
 ## x402 Agent Runtime
 
-ArkivGate now has a demo x402 rail across the project:
-
+ArkivGate has a demo x402 rail across the project:
 
 - The web playground protects `/api/playground/interceptor-test` with a 402 challenge, signs a demo payment as an agent, reruns the request, and shows the payment response.
 - The Python interceptor can protect the real attributed runtime path, `POST /cli/<token>/v1/messages`, when `X402_DEMO_ENABLED=true`.
