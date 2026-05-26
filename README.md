@@ -152,6 +152,9 @@ when a CLI token is provided). Railway should return `/health` as `200 OK`.
    - action header: `LOG`
 
 ### Arkiv Entities Recorded (Explorer)
+<img width="1146" height="625" alt="image" src="https://github.com/user-attachments/assets/b16a5949-a8d2-4709-8704-1132f851703b" />
+(wait 1 minute to confirm tx)
+<img width="1125" height="603" alt="image" src="https://github.com/user-attachments/assets/4990dcdd-164b-42bf-8bc9-4f945c99a68a" />
 
 Persisted for the validated runtime traces above via the internal Arkiv bridge replay:
 
