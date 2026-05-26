@@ -1,4 +1,8 @@
 ﻿<img width="1680" height="608" alt="‎project-logo png" src="https://github.com/user-attachments/assets/f227f9fd-d321-4c5b-bd48-3bb8e3ce4e2d" />
+ # ArkivGate
+
+ArkivGate is an AI governance platform for development teams and agent runtimes. It adds x402 payment gating, policy enforcement, auditable decision logs, and team controls around model interactions.
+
 
 Fast example
 <img width="1146" height="625" alt="image" src="https://github.com/user-attachments/assets/b16a5949-a8d2-4709-8704-1132f851703b" />
@@ -11,9 +15,6 @@ data.arkiv
 
 https://data.arkiv.network/?q=$key+=+%220x1eb559ef0a11f18c373ef55d468f0e038564a4776317d78ed64675f3447dbdec%22
 
- # ArkivGate
-
-ArkivGate is an AI governance platform for development teams and agent runtimes. It adds x402 payment gating, policy enforcement, auditable decision logs, and team controls around model interactions.
 
 ## x402 Agent Runtime
 
