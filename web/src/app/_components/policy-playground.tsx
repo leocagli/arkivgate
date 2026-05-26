@@ -120,6 +120,7 @@ export function PolicyPlayground() {
   const [recipientAddress, setRecipientAddress] = useState(DEMO_THREAT_ADDRESS);
   const [x402Phase, setX402Phase] = useState<X402Phase>("idle");
   const [runningLiveTest, setRunningLiveTest] = useState(false);
+  const [liveRunKind, setLiveRunKind] = useState<"prompt" | "payment" | null>(null);
   const [attemptStatus, setAttemptStatus] = useState<{
     prompt: string;
     source: "sample" | "manual";
@@ -238,7 +239,7 @@ export function PolicyPlayground() {
   async function runLiveTest(
     promptOverride?: string,
     source: "sample" | "manual" = "manual",
-    options: { showAttemptStatus?: boolean } = {},
+    options: { showAttemptStatus?: boolean; kind?: "prompt" | "payment" } = {},
   ) {
     const promptToTest = (promptOverride ?? input).trim();
     if (!promptToTest || runningLiveTest) return;
@@ -249,6 +250,7 @@ export function PolicyPlayground() {
       setAttemptStatus({ prompt: promptToTest, source });
     }
     setRunningLiveTest(true);
+    setLiveRunKind(options.kind ?? "prompt");
     setX402Phase("requesting");
     setLiveResult(null);
     try {
@@ -372,10 +374,12 @@ export function PolicyPlayground() {
       "Evaluate the structured payment intent attached to this request.",
     ].join(" ");
 
-    void runLiveTest(paymentOrder, "manual", { showAttemptStatus: false });
+    void runLiveTest(paymentOrder, "manual", { showAttemptStatus: false, kind: "payment" });
   }
 
   const showAttemptStatus = attemptStatus !== null;
+  const paidRunActive = runningLiveTest && liveRunKind === "payment" && !showAttemptStatus;
+  const paidRunResult = liveRunKind === "payment" ? liveResult : null;
 
   return (
     <section id="playground" className="mx-auto w-full max-w-6xl px-6 py-16 md:py-20">
@@ -672,6 +676,46 @@ export function PolicyPlayground() {
           </button>
         </div>
 
+        {paidRunActive ? (
+          <div className="mb-4 space-y-2 border border-[#1b5a65]/15 bg-white p-4 text-sm text-graphite-dark" style={{ borderRadius: "6px" }}>
+            <p>Negotiating x402 payment order, evaluating payment policy, and persisting evidence on Arkiv...</p>
+            <div className="grid gap-2 text-xs md:grid-cols-4">
+              <StepPill active={x402Phase !== "idle"} label="request" />
+              <StepPill active={x402Phase === "challenged" || x402Phase === "signed" || x402Phase === "settled"} label="402" />
+              <StepPill active={x402Phase === "signed" || x402Phase === "settled"} label="signature" />
+              <StepPill active={x402Phase === "settled"} label="arkiv" />
+            </div>
+          </div>
+        ) : null}
+
+        {paidRunResult ? (
+          <div className="mb-4 flex flex-wrap gap-2 border border-[#1b5a65]/15 bg-white p-3" style={{ borderRadius: "6px" }}>
+            <span className="border border-[#1b5a65]/25 bg-[#edf5f4] px-2.5 py-1 font-mono text-[11px] uppercase tracking-[0.12em] text-[#1b5a65]" style={{ borderRadius: "6px" }}>
+              paid execution: {paidRunResult.finalDecision?.verdict ?? paidRunResult.action ?? "n/a"}
+            </span>
+            {paidRunResult.x402 ? (
+              <span className="border border-[#2e6659]/30 bg-[#e4f4ef] px-2.5 py-1 font-mono text-[11px] uppercase tracking-[0.12em] text-[#2e6659]" style={{ borderRadius: "6px" }}>
+                x402 signed: {paidRunResult.x402.amount} {paidRunResult.x402.asset}
+              </span>
+            ) : null}
+            {paidRunResult.paymentPolicy ? (
+              <span className="border border-[#1b5a65]/25 bg-white px-2.5 py-1 font-mono text-[11px] uppercase tracking-[0.12em] text-[#1b5a65]" style={{ borderRadius: "6px" }}>
+                payment: {paidRunResult.paymentPolicy.verdict}
+              </span>
+            ) : null}
+            {paidRunResult.promptPolicy ? (
+              <span className="border border-[#1b5a65]/25 bg-white px-2.5 py-1 font-mono text-[11px] uppercase tracking-[0.12em] text-[#1b5a65]" style={{ borderRadius: "6px" }}>
+                prompt: {paidRunResult.promptPolicy.verdict}
+              </span>
+            ) : null}
+            {paidRunResult.traceId ? (
+              <span className="border border-[#1b5a65]/25 bg-white px-2.5 py-1 font-mono text-[11px] uppercase tracking-[0.12em] text-[#1b5a65]" style={{ borderRadius: "6px" }}>
+                trace: {paidRunResult.traceId}
+              </span>
+            ) : null}
+          </div>
+        ) : null}
+
         <div className="mb-4 grid gap-3 md:grid-cols-4">
           <RailMetric label="price" value={X402_PRICE} />
           <RailMetric label="network" value={X402_NETWORK} />
@@ -791,128 +835,116 @@ export function PolicyPlayground() {
           />
         </label>
 
-        {runningLiveTest && !showAttemptStatus ? (
-          <div className="mb-4 space-y-2 border border-[#1b5a65]/15 bg-white p-4 text-sm text-graphite-dark" style={{ borderRadius: "6px" }}>
-            <p>Negotiating x402 payment order, evaluating payment policy, and persisting evidence on Arkiv...</p>
-            <div className="grid gap-2 text-xs md:grid-cols-4">
-              <StepPill active={x402Phase !== "idle"} label="request" />
-              <StepPill active={x402Phase === "challenged" || x402Phase === "signed" || x402Phase === "settled"} label="402" />
-              <StepPill active={x402Phase === "signed" || x402Phase === "settled"} label="signature" />
-              <StepPill active={x402Phase === "settled"} label="arkiv" />
-            </div>
-          </div>
-        ) : null}
-
-        {!liveResult && !runningLiveTest ? (
+        {!paidRunResult && !paidRunActive ? (
           <p className="text-sm text-graphite-dark">
             Run a paid agent execution to validate the x402 payment policy and persist the decision on Arkiv.
           </p>
-        ) : liveResult ? (
+        ) : paidRunResult ? (
           <div className="space-y-3">
             <div className="flex flex-wrap gap-2">
               <span className="border border-[#1b5a65]/25 bg-white px-2.5 py-1 font-mono text-[11px] uppercase tracking-[0.12em] text-[#1b5a65]" style={{ borderRadius: "6px" }}>
-                status: {liveResult.status}
+                status: {paidRunResult.status}
               </span>
               <span className="border border-[#1b5a65]/25 bg-white px-2.5 py-1 font-mono text-[11px] uppercase tracking-[0.12em] text-[#1b5a65]" style={{ borderRadius: "6px" }}>
-                latency: {liveResult.elapsedMs}ms
+                latency: {paidRunResult.elapsedMs}ms
               </span>
               <span className="border border-[#1b5a65]/25 bg-white px-2.5 py-1 font-mono text-[11px] uppercase tracking-[0.12em] text-[#1b5a65]" style={{ borderRadius: "6px" }}>
-                action: {liveResult.action ?? "n/a"}
+                action: {paidRunResult.action ?? "n/a"}
               </span>
               <span className="border border-[#1b5a65]/25 bg-white px-2.5 py-1 font-mono text-[11px] uppercase tracking-[0.12em] text-[#1b5a65]" style={{ borderRadius: "6px" }}>
-                mode: {liveResult.mode ?? "unknown"}
+                mode: {paidRunResult.mode ?? "unknown"}
               </span>
-              {liveResult.x402 ? (
+              {paidRunResult.x402 ? (
                 <span className="border border-[#2e6659]/30 bg-[#e4f4ef] px-2.5 py-1 font-mono text-[11px] uppercase tracking-[0.12em] text-[#2e6659]" style={{ borderRadius: "6px" }}>
-                  x402: {liveResult.x402.amount} {liveResult.x402.asset}
+                  x402: {paidRunResult.x402.amount} {paidRunResult.x402.asset}
                 </span>
               ) : null}
             </div>
 
             <div className="grid gap-3 md:grid-cols-4">
-              {liveResult.paymentPolicy ? (
+              {paidRunResult.paymentPolicy ? (
                 <PolicyLane
                   title="x402 payment policy"
-                  verdict={liveResult.paymentPolicy.verdict}
-                  reason={liveResult.paymentPolicy.reason}
+                  verdict={paidRunResult.paymentPolicy.verdict}
+                  reason={paidRunResult.paymentPolicy.reason}
                   detail={
-                    liveResult.paymentPolicy.adjustedTransferUsd
-                      ? `capped to $${liveResult.paymentPolicy.adjustedTransferUsd}`
-                      : `risk ${liveResult.paymentPolicy.riskScore}`
+                    paidRunResult.paymentPolicy.adjustedTransferUsd
+                      ? `capped to $${paidRunResult.paymentPolicy.adjustedTransferUsd}`
+                      : `risk ${paidRunResult.paymentPolicy.riskScore}`
                   }
                 />
               ) : null}
-              {liveResult.paymentPolicy ? (
+              {paidRunResult.paymentPolicy ? (
                 <PolicyLane
                   title="Arkiv threat intel"
-                  verdict={liveResult.paymentPolicy.threatIntel.verdict}
-                  reason={liveResult.paymentPolicy.threatIntel.aiSummary}
+                  verdict={paidRunResult.paymentPolicy.threatIntel.verdict}
+                  reason={paidRunResult.paymentPolicy.threatIntel.aiSummary}
                   detail={
-                    liveResult.paymentPolicy.threatIntel.isFlagged
-                      ? `${liveResult.paymentPolicy.threatIntel.confirmationCount} confirmations`
+                    paidRunResult.paymentPolicy.threatIntel.isFlagged
+                      ? `${paidRunResult.paymentPolicy.threatIntel.confirmationCount} confirmations`
                       : "no active report"
                   }
                 />
               ) : null}
-              {liveResult.promptPolicy ? (
+              {paidRunResult.promptPolicy ? (
                 <PolicyLane
                   title="prompt policy"
-                  verdict={liveResult.promptPolicy.verdict}
-                  reason={liveResult.promptPolicy.reason}
-                  detail={`${liveResult.promptPolicy.matchedRules.length} matched rules`}
+                  verdict={paidRunResult.promptPolicy.verdict}
+                  reason={paidRunResult.promptPolicy.reason}
+                  detail={`${paidRunResult.promptPolicy.matchedRules.length} matched rules`}
                 />
               ) : null}
-              {liveResult.finalDecision ? (
+              {paidRunResult.finalDecision ? (
                 <PolicyLane
                   title="final decision"
-                  verdict={liveResult.finalDecision.verdict}
-                  reason={liveResult.finalDecision.reason}
+                  verdict={paidRunResult.finalDecision.verdict}
+                  reason={paidRunResult.finalDecision.reason}
                   detail="worst severity wins"
                 />
               ) : null}
             </div>
 
-            {liveResult.traceId ? (
-              <p className="text-xs text-graphite-dark">trace: {liveResult.traceId}</p>
+            {paidRunResult.traceId ? (
+              <p className="text-xs text-graphite-dark">trace: {paidRunResult.traceId}</p>
             ) : null}
-            {liveResult.target ? (
-              <p className="text-xs text-graphite-dark">target: {liveResult.target}</p>
+            {paidRunResult.target ? (
+              <p className="text-xs text-graphite-dark">target: {paidRunResult.target}</p>
             ) : null}
-            {liveResult.x402 ? (
+            {paidRunResult.x402 ? (
               <p className="text-xs text-graphite-dark">
-                payer agent: {liveResult.x402.payer} / payment: {liveResult.x402.transaction}
+                payer agent: {paidRunResult.x402.payer} / payment: {paidRunResult.x402.transaction}
               </p>
             ) : null}
-            {liveResult.hint ? <p className="text-sm text-[#8a5f1f]">{liveResult.hint}</p> : null}
-            {liveResult.error ? <p className="text-sm text-[#8a2d2d]">{liveResult.error}: {liveResult.detail}</p> : null}
-            {liveResult.arkiv?.error ? (
+            {paidRunResult.hint ? <p className="text-sm text-[#8a5f1f]">{paidRunResult.hint}</p> : null}
+            {paidRunResult.error ? <p className="text-sm text-[#8a2d2d]">{paidRunResult.error}: {paidRunResult.detail}</p> : null}
+            {paidRunResult.arkiv?.error ? (
               <p className="text-sm text-[#8a5f1f]">
-                Arkiv evidence pending: {liveResult.arkiv.detail ?? liveResult.arkiv.error}
+                Arkiv evidence pending: {paidRunResult.arkiv.detail ?? paidRunResult.arkiv.error}
               </p>
             ) : null}
 
-            {liveResult.arkiv?.promptReviewKey ? (
+            {paidRunResult.arkiv?.promptReviewKey ? (
               <div className="space-y-2 border border-[#1b5a65]/15 bg-white p-3 text-xs text-graphite-dark" style={{ borderRadius: "6px" }}>
                 <p className="font-mono uppercase tracking-[0.12em] text-graphite">arkiv persisted</p>
-                <p>agent: {liveResult.arkiv.agentEntityKey}</p>
-                <p>agent tx: {liveResult.arkiv.agentTxHash}</p>
-                {liveResult.arkiv.paymentReviewKey ? <p>payment_review: {liveResult.arkiv.paymentReviewKey}</p> : null}
-                {liveResult.arkiv.paymentReviewTxHash ? <p>payment_review tx: {liveResult.arkiv.paymentReviewTxHash}</p> : null}
-                {liveResult.arkiv.threatReportKey ? <p>threat_report: {liveResult.arkiv.threatReportKey}</p> : null}
-                {liveResult.arkiv.threatReportTxHash ? <p>threat_report tx: {liveResult.arkiv.threatReportTxHash}</p> : null}
-                {liveResult.arkiv.threatConfirmationKey ? <p>threat_confirmation: {liveResult.arkiv.threatConfirmationKey}</p> : null}
-                {liveResult.arkiv.threatConfirmationTxHash ? <p>threat_confirmation tx: {liveResult.arkiv.threatConfirmationTxHash}</p> : null}
-                <p>policy: {liveResult.arkiv.policyKey}</p>
-                {liveResult.arkiv.policyTxHash ? <p>policy tx: {liveResult.arkiv.policyTxHash}</p> : null}
-                <p>prompt_review: {liveResult.arkiv.promptReviewKey}</p>
-                <p>prompt_review tx: {liveResult.arkiv.promptReviewTxHash}</p>
-                <p>policy_decision: {liveResult.arkiv.policyDecisionKey}</p>
-                <p>policy_decision tx: {liveResult.arkiv.policyDecisionTxHash}</p>
+                <p>agent: {paidRunResult.arkiv.agentEntityKey}</p>
+                <p>agent tx: {paidRunResult.arkiv.agentTxHash}</p>
+                {paidRunResult.arkiv.paymentReviewKey ? <p>payment_review: {paidRunResult.arkiv.paymentReviewKey}</p> : null}
+                {paidRunResult.arkiv.paymentReviewTxHash ? <p>payment_review tx: {paidRunResult.arkiv.paymentReviewTxHash}</p> : null}
+                {paidRunResult.arkiv.threatReportKey ? <p>threat_report: {paidRunResult.arkiv.threatReportKey}</p> : null}
+                {paidRunResult.arkiv.threatReportTxHash ? <p>threat_report tx: {paidRunResult.arkiv.threatReportTxHash}</p> : null}
+                {paidRunResult.arkiv.threatConfirmationKey ? <p>threat_confirmation: {paidRunResult.arkiv.threatConfirmationKey}</p> : null}
+                {paidRunResult.arkiv.threatConfirmationTxHash ? <p>threat_confirmation tx: {paidRunResult.arkiv.threatConfirmationTxHash}</p> : null}
+                <p>policy: {paidRunResult.arkiv.policyKey}</p>
+                {paidRunResult.arkiv.policyTxHash ? <p>policy tx: {paidRunResult.arkiv.policyTxHash}</p> : null}
+                <p>prompt_review: {paidRunResult.arkiv.promptReviewKey}</p>
+                <p>prompt_review tx: {paidRunResult.arkiv.promptReviewTxHash}</p>
+                <p>policy_decision: {paidRunResult.arkiv.policyDecisionKey}</p>
+                <p>policy_decision tx: {paidRunResult.arkiv.policyDecisionTxHash}</p>
               </div>
             ) : null}
 
             <pre className="max-h-72 overflow-auto whitespace-pre-wrap border border-[#1b5a65]/15 bg-white p-3 text-xs leading-relaxed text-ink" style={{ borderRadius: "6px" }}>
-              {JSON.stringify(liveResult.upstream ?? {}, null, 2)}
+              {JSON.stringify(paidRunResult.upstream ?? {}, null, 2)}
             </pre>
           </div>
         ) : null}
