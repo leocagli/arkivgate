@@ -56,7 +56,7 @@ https://data.arkiv.network/?q=$key+=+%220x1eb559ef0a11f18c373ef55d468f0e038564a4
 
 Identifies the org and lets the client use ArkivGate as the gateway for prompts, x402 payments, and wallets.
 
-<img width="1371" height="819" alt="image" src="https://github.com/user-attachments/assets/0d30636c-e65b-4a47-92a4-4b9f2cbf1641" />
+<img width="1365" height="714" alt="image" src="https://github.com/user-attachments/assets/7352151f-b69a-4990-bf16-8a01d74ab4ab" />
 
 
 ## Why Arkiv
