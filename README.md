@@ -52,6 +52,13 @@ Example Arkiv query:
 
 https://data.arkiv.network/?q=$key+=+%220x1eb559ef0a11f18c373ef55d468f0e038564a4776317d78ed64675f3447dbdec%22
 
+### API KEYS
+
+Identifies the org and lets the client use ArkivGate as the gateway for prompts, x402 payments, and wallets.
+
+<img width="1371" height="819" alt="image" src="https://github.com/user-attachments/assets/0d30636c-e65b-4a47-92a4-4b9f2cbf1641" />
+
+
 ## Why Arkiv
 
 ArkivGate uses Arkiv as the product data layer, not just as a final explorer link.
