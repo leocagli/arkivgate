@@ -8,6 +8,18 @@ ArkivGate is an AI governance platform for development teams and agent runtimes.
 
 ArkivGate now has a demo x402 rail across the project:
 
+<img width="1146" height="625" alt="image" src="https://github.com/user-attachments/assets/b16a5949-a8d2-4709-8704-1132f851703b" />
+(wait 1 minute to confirm tx)
+<img width="1125" height="603" alt="image" src="https://github.com/user-attachments/assets/4990dcdd-164b-42bf-8bc9-4f945c99a68a" />
+x402 test
+<img width="1467" height="751" alt="image" src="https://github.com/user-attachments/assets/d167a039-7044-4941-a3e7-6a82c53ec740" />
+logs on data.arkiv
+<img width="1388" height="927" alt="image" src="https://github.com/user-attachments/assets/f3b7c51d-4c7a-46b7-8e57-811c022d7845" />
+data.arkiv
+<img width="1598" height="828" alt="image" src="https://github.com/user-attachments/assets/26b1e260-9d58-47d5-b3f3-f1929655aa47" />
+
+https://data.arkiv.network/?q=$key+=+%220x1eb559ef0a11f18c373ef55d468f0e038564a4776317d78ed64675f3447dbdec%22
+
 - The web playground protects `/api/playground/interceptor-test` with a 402 challenge, signs a demo payment as an agent, reruns the request, and shows the payment response.
 - The Python interceptor can protect the real attributed runtime path, `POST /cli/<token>/v1/messages`, when `X402_DEMO_ENABLED=true`.
 - Paid executions run through two policy lanes: payment intent policy and prompt policy. Both produce `PASS`, `WARN`, `REDACT`, or `BLOCK`;
@@ -152,18 +164,6 @@ when a CLI token is provided). Railway should return `/health` as `200 OK`.
    - action header: `LOG`
 
 ### Arkiv Entities Recorded (Explorer)
-
-<img width="1146" height="625" alt="image" src="https://github.com/user-attachments/assets/b16a5949-a8d2-4709-8704-1132f851703b" />
-(wait 1 minute to confirm tx)
-<img width="1125" height="603" alt="image" src="https://github.com/user-attachments/assets/4990dcdd-164b-42bf-8bc9-4f945c99a68a" />
-x402 test
-<img width="1467" height="751" alt="image" src="https://github.com/user-attachments/assets/d167a039-7044-4941-a3e7-6a82c53ec740" />
-logs on data.arkiv
-<img width="1388" height="927" alt="image" src="https://github.com/user-attachments/assets/f3b7c51d-4c7a-46b7-8e57-811c022d7845" />
-data.arkiv
-<img width="1598" height="828" alt="image" src="https://github.com/user-attachments/assets/26b1e260-9d58-47d5-b3f3-f1929655aa47" />
-
-https://data.arkiv.network/?q=$key+=+%220x1eb559ef0a11f18c373ef55d468f0e038564a4776317d78ed64675f3447dbdec%22
 
 Persisted for the validated runtime traces above via the internal Arkiv bridge replay:
 
