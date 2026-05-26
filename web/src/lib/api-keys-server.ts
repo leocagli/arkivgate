@@ -87,6 +87,7 @@ async function getOrCreateMemberWithRest(input: {
   const created = await supabaseRestFetch<RestMember[]>("/members", {
     method: "POST",
     body: JSON.stringify({
+      id: crypto.randomUUID(),
       org_id: input.orgId,
       email: input.email,
       role: "admin",
@@ -162,6 +163,7 @@ export async function createRuntimeApiKey(input: {
     const rows = await supabaseRestFetch<RestCliToken[]>("/cli_tokens", {
       method: "POST",
       body: JSON.stringify({
+        id: crypto.randomUUID(),
         member_id: member.id,
         token_hash: tokenHash,
         label,
